@@ -1,5 +1,5 @@
-#ifndef PARTICLE_CONTAINER_H
-#define PARTICLE_CONTAINER_H
+#ifndef PARTICLE_CONTAINER_HPP
+#define PARTICLE_CONTAINER_HPP
 #include "Particle.hpp"
 #include <vector>
 
