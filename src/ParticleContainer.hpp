@@ -25,6 +25,8 @@ class ParticleContainer {
     void migrateParticle(const unsigned int idx);
     
     // Set particles an individual number of moves based on some distribution
+    // Currently this is a poisson distribution to get the number of crossings
+    // Moves is then crossings + 1
     void setNumMoves();
 
     // Dump state of all particles for debugging
@@ -48,6 +50,9 @@ class ParticleContainer {
   private:
     std::vector<Particle> particles;
     unsigned int global_id;
+
+    std::default_random_engine engine;
+    std::poisson_distribution<int> distribution;
 };
 
 #endif

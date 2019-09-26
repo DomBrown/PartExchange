@@ -2,9 +2,13 @@
 #include <iostream>
 #include <cassert>
 
-ParticleContainer::ParticleContainer() : global_id(0) {}
+ParticleContainer::ParticleContainer() : global_id(0), distribution(std::poisson_distribution<int>(1.0)) {
+  engine.seed(240694);
+}
 
-ParticleContainer::ParticleContainer(const unsigned int global_id_start_) : global_id(global_id_start_) {}
+ParticleContainer::ParticleContainer(const unsigned int global_id_start_) : global_id(global_id_start_), distribution(std::poisson_distribution<int>(1.0)) {
+  engine.seed(240694);
+}
 
 inline Particle& ParticleContainer::operator[](const unsigned int idx) {
   assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
@@ -29,10 +33,8 @@ unsigned int ParticleContainer::addParticle(const Particle& p) {
 }
 
 void ParticleContainer::setNumMoves() {
-  std::default_random_engine generator;
-  std::poisson_distribution<int> distribution(1);
   for(auto &p : particles) {
-    int num_crossings = distribution(generator);
+    int num_crossings = distribution(engine);
     p.num_moves = num_crossings + 1;
   }
 }
@@ -40,7 +42,7 @@ void ParticleContainer::setNumMoves() {
 void ParticleContainer::dumpParticles() {
   std::cout << "****** Begin Particle Dump ******" << std::endl;
   for(auto &p : particles) {
-    std::cout << "ID: " << p.id << " NumMoves: " << p.num_moves << std::endl;
+    std::cout << "ID: " << p.id << "\tNumMoves: " << p.num_moves << std::endl;
   }
   std::cout << "******* End Particle Dump *******" << std::endl;
 }
