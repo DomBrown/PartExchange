@@ -2,6 +2,7 @@
 #define PARTICLE_CONTAINER_HPP
 #include "Particle.hpp"
 #include <vector>
+#include <random>
 
 class ParticleContainer {
   public:
@@ -22,6 +23,9 @@ class ParticleContainer {
     
     // Marks a particle for migration
     void migrateParticle(const unsigned int idx);
+    
+    // Set particles an individual number of moves based on some distribution
+    void setNumMoves();
 
     // Dump state of all particles for debugging
     void dumpParticles();

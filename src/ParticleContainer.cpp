@@ -28,6 +28,15 @@ unsigned int ParticleContainer::addParticle(const Particle& p) {
   return loc;
 }
 
+void ParticleContainer::setNumMoves() {
+  std::default_random_engine generator;
+  std::poisson_distribution<int> distribution(1);
+  for(auto &p : particles) {
+    int num_crossings = distribution(generator);
+    p.num_moves = num_crossings + 1;
+  }
+}
+
 void ParticleContainer::dumpParticles() {
   std::cout << "****** Begin Particle Dump ******" << std::endl;
   for(auto &p : particles) {
