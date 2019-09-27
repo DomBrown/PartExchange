@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 project(PartExchange)
 
+# Locate custom Find*.cmake files
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+
 # Convenience macros for setting directories, finding/checking packages
 macro(require_pkg_directory pkg_name pkg_user_name)
   #message(STATUS "require_directory: name=${pkg_name}")
@@ -45,11 +49,15 @@ macro(check_package_found pkg_name)
   endif()
 endmacro(check_package_found)
 
+
 # require directories for these packages
 require_pkg_directory(vt "VT")
 
 # find these required packages
 find_package_local(vt "${vt_DIR}/cmake")
+
+# Find yaml
+find_package(YamlCpp REQUIRED)
 
 set(SOURCE_FILES
   src/PartExchange.cpp
@@ -63,5 +71,8 @@ set(HEADER_FILES
 
 add_executable(PartExchange ${SOURCE_FILES} ${HEADER_FILES})
 
+target_include_directories(PartExchange PUBLIC ${YamlCpp_INCLUDES})
+message(STATUS "LIBS!!!!!! ${YamlCpp_LIBRARIES}")
 target_link_libraries(PartExchange PUBLIC vt::runtime::vt)
+target_link_libraries(PartExchange PUBLIC ${YamlCpp_LIBRARIES})
 
