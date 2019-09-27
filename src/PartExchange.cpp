@@ -5,6 +5,8 @@
 #include <chrono>
 #include <thread>
 
+#include "yaml-cpp/yaml.h"
+
 #include "ParticleContainer.hpp"
 
 int calculateCost(const int num_parts, const double cost_per_part) {
@@ -24,7 +26,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < 100; i++)
     particles.addParticle();
 
-  for(int step = 0; step < nsteps; step++) {
+/*  for(int step = 0; step < nsteps; step++) {
     std::cout << "Step" << std::endl;
     
     particles.setNumMoves();
@@ -32,7 +34,11 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(std::chrono::milliseconds(calculateCost(particles.size(), cost_per_part)));
 
     particles.dumpParticles();
-  }
+  }*/
+
+  YAML::Node test = YAML::LoadFile("Test.yaml");
+  YAML::Node test2 = test["Data"];
+  std::cout << "Test integer: " << test2["Number"].as<int>() << std::endl;
 
   return 0;
 }
