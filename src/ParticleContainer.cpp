@@ -1,5 +1,7 @@
 #include "ParticleContainer.hpp"
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <cassert>
 
 ParticleContainer::ParticleContainer() : global_id(0), distribution(std::poisson_distribution<int>(1.0)) {
@@ -39,6 +41,18 @@ void ParticleContainer::setNumMoves() {
     int num_crossings = distribution(engine);
     p.num_moves = num_crossings + 1;
   }
+}
+
+void ParticleContainer::moveKernel(const int part_ns) {
+  int total_ns = 0;
+  for(auto &p : particles) {
+    total_ns += p.num_moves * part_ns;
+    p.num_moves = 0;
+  }
+  std::this_thread::sleep_for(std::chrono::nanoseconds(total_ns));
+  
+  //double sec = total_ns / 1e9;
+  //std::cout << "Move time: " << sec << std::endl;
 }
 
 void ParticleContainer::dumpParticles() {

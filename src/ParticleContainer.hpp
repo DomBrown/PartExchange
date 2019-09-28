@@ -29,6 +29,8 @@ class ParticleContainer {
     // Moves is then crossings + 1
     void setNumMoves();
 
+    void moveKernel(const int part_ns);
+
     // Dump state of all particles for debugging
     void dumpParticles();
     

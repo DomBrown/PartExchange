@@ -1,0 +1,6 @@
+Timesteps: 1
+Particle Count: 2500000
+Average Crossings: 1
+Crossing RNG Seed: 123456789
+Move Particle Nanoseconds: 1
+Migration Chance: 0.05

@@ -2,16 +2,10 @@
 #include <vt/transport.h>
 
 #include <iostream>
-#include <chrono>
-#include <thread>
 
 #include "yaml-cpp/yaml.h"
 
 #include "ParticleContainer.hpp"
-
-int calculateCost(const int num_parts, const double cost_per_part) {
-  return num_parts * cost_per_part;
-}
 
 int main(int argc, char** argv) {
   YAML::Node input_deck;
@@ -41,13 +35,12 @@ int main(int argc, char** argv) {
   for(int step = 0; step < nsteps; step++) {
     std::cout << "Step " << step << std::endl;
     
-    // Setup for move
+    // Setup for move, assign each particle a move count based on the
+    // distribution we set up
     particles.setNumMoves();
 
     // Do the move
-    std::this_thread::sleep_for(std::chrono::nanoseconds(calculateCost(particles.size(), move_part_ns)));
-
-    particles.dumpParticles();
+    particles.moveKernel(move_part_ns);
   }
 
   return 0;
