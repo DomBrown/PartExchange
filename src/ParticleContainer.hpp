@@ -7,22 +7,22 @@
 class ParticleContainer {
   public:
     ParticleContainer();
-    ParticleContainer(const unsigned int global_id_start_);
+    ParticleContainer(const int global_id_start_, const int ave_crossings, const int seed);
 
     // Access operators
-    inline Particle& operator[](const unsigned int idx);
-    inline const Particle& operator[](const unsigned int idx) const;
+    inline Particle& operator[](const int idx);
+    inline const Particle& operator[](const int idx) const;
 
     // Adds a newly created particle with unique ID to the
     // end of the vector. Returns the index
-    unsigned int addParticle();
+    int addParticle();
     
     // Adds an existing particle to the end of the vector
     // Returns the index
-    unsigned int addParticle(const Particle& p);
+    int addParticle(const Particle& p);
     
     // Marks a particle for migration
-    void migrateParticle(const unsigned int idx);
+    void migrateParticle(const int idx);
     
     // Set particles an individual number of moves based on some distribution
     // Currently this is a poisson distribution to get the number of crossings
@@ -34,22 +34,22 @@ class ParticleContainer {
     
     // Reserve a set amount of slots
     // Returns new capacity
-    unsigned int reserve(const unsigned int amount);
+    int reserve(const int amount);
 
     // Reserve an additional amount of slots if capacity < size + amount
     // Capacity will be at least size + amount
     // Returns new capacity
-    unsigned int reserveAdditional(const unsigned int amount);
+    int reserveAdditional(const int amount);
     
     // Get the number of particles we have
-    unsigned int size();
+    int size();
 
     // Get the current max capacity of the container
-    unsigned int capacity();
+    int capacity();
   
   private:
     std::vector<Particle> particles;
-    unsigned int global_id;
+    int global_id;
 
     std::default_random_engine engine;
     std::poisson_distribution<int> distribution;

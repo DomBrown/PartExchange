@@ -4,31 +4,33 @@
 
 ParticleContainer::ParticleContainer() : global_id(0), distribution(std::poisson_distribution<int>(1.0)) {
   engine.seed(240694);
+  std::cout << "Setting default crossing average and seed!" << std::endl;
 }
 
-ParticleContainer::ParticleContainer(const unsigned int global_id_start_) : global_id(global_id_start_), distribution(std::poisson_distribution<int>(1.0)) {
-  engine.seed(240694);
+ParticleContainer::ParticleContainer(const int global_id_start_, const int ave_crossings, const int seed) : global_id(global_id_start_), distribution(std::poisson_distribution<int>(ave_crossings)) {
+  engine.seed(seed);
+  std::cout << "Setting average crossings: " << ave_crossings << ", seed: " << seed << std::endl;
 }
 
-inline Particle& ParticleContainer::operator[](const unsigned int idx) {
+inline Particle& ParticleContainer::operator[](const int idx) {
   assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
   return particles[idx];
 }
 
-inline const Particle& ParticleContainer::operator[](const unsigned int idx) const {
+inline const Particle& ParticleContainer::operator[](const int idx) const {
   assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
   return particles[idx];
 }
 
-unsigned int ParticleContainer::addParticle() {
+int ParticleContainer::addParticle() {
   particles.push_back(Particle(global_id++));
-  unsigned int loc = particles.size() - 1;
+  int loc = particles.size() - 1;
   return loc;
 }
 
-unsigned int ParticleContainer::addParticle(const Particle& p) {
+int ParticleContainer::addParticle(const Particle& p) {
   particles.push_back(p);
-  unsigned int loc = particles.size() - 1;
+  int loc = particles.size() - 1;
   return loc;
 }
 
@@ -47,24 +49,24 @@ void ParticleContainer::dumpParticles() {
   std::cout << "******* End Particle Dump *******" << std::endl;
 }
 
-void ParticleContainer::migrateParticle(const unsigned int idx) {}
+void ParticleContainer::migrateParticle(const int idx) {}
 
-unsigned int ParticleContainer::reserve(const unsigned int amount) {
+int ParticleContainer::reserve(const int amount) {
   particles.reserve(amount);
   return particles.capacity();
 }
 
-unsigned int ParticleContainer::reserveAdditional(const unsigned int amount) {
+int ParticleContainer::reserveAdditional(const int amount) {
   if(particles.capacity() < (particles.size() + amount))
     particles.reserve(particles.capacity() + amount);
   
   return particles.capacity();
 }
 
-unsigned int ParticleContainer::capacity() {
+int ParticleContainer::capacity() {
   return particles.capacity();
 }
 
-unsigned int ParticleContainer::size() {
+int ParticleContainer::size() {
   return particles.size();
 }

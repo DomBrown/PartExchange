@@ -14,31 +14,41 @@ int calculateCost(const int num_parts, const double cost_per_part) {
 }
 
 int main(int argc, char** argv) {
+  YAML::Node input_deck;
   
-  unsigned int global_start_id = 0;
-  const double cost_per_part = 5;  // currently in milliseconds
-  const int nsteps = 2;
+  if(argc < 2) {
+    std::cout << "Provide an input YAML file!" << std::endl;
+    return 1;
+  } else {
+    input_deck = YAML::LoadFile(argv[1]);
+  }
 
-  ParticleContainer particles(global_start_id);
+  const int nsteps = input_deck["Timesteps"].as<int>();
+  const int nparticles = input_deck["Particle Count"].as<int>();
+  const int ave_crossings = input_deck["Average Crossings"].as<int>();
+  const int rng_seed = input_deck["Crossing RNG Seed"].as<int>();
+  const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
+  const double migration_chance = input_deck["Migration Chance"].as<double>();
 
-  particles.reserve(100);
 
-  for(int i = 0; i < 100; i++)
+  ParticleContainer particles(0, ave_crossings, rng_seed);
+
+  particles.reserve(nparticles);
+
+  for(int i = 0; i < nparticles; i++)
     particles.addParticle();
 
-/*  for(int step = 0; step < nsteps; step++) {
-    std::cout << "Step" << std::endl;
+  for(int step = 0; step < nsteps; step++) {
+    std::cout << "Step " << step << std::endl;
     
+    // Setup for move
     particles.setNumMoves();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(calculateCost(particles.size(), cost_per_part)));
+    // Do the move
+    std::this_thread::sleep_for(std::chrono::nanoseconds(calculateCost(particles.size(), move_part_ns)));
 
     particles.dumpParticles();
-  }*/
-
-  YAML::Node test = YAML::LoadFile("Test.yaml");
-  YAML::Node test2 = test["Data"];
-  std::cout << "Test integer: " << test2["Number"].as<int>() << std::endl;
+  }
 
   return 0;
 }
