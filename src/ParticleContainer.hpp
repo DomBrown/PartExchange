@@ -7,7 +7,7 @@
 class ParticleContainer {
   public:
     ParticleContainer();
-    ParticleContainer(const int global_id_start_, const int ave_crossings, const int seed);
+    ParticleContainer(const int global_id_start_, const int ave_crossings, const int migrate_chance_, const int seed);
 
     // Access operators
     inline Particle& operator[](const int idx);
@@ -28,8 +28,13 @@ class ParticleContainer {
     // Currently this is a poisson distribution to get the number of crossings
     // Moves is then crossings + 1
     void setNumMoves();
+    
+    // Does the 'move', and marks particles for migration
+    void moveKernel(const int start, const int end, const int part_ns);
 
-    void moveKernel(const int part_ns);
+    // Takes the particle list and compacts it by removing all particles
+    // that are migrated
+    void compactList();
 
     // Dump state of all particles for debugging
     void dumpParticles();
@@ -51,10 +56,14 @@ class ParticleContainer {
   
   private:
     std::vector<Particle> particles;
+    std::vector<int> migrate_list;
     int global_id;
+    int migrate_chance;
 
     std::default_random_engine engine;
+    std::default_random_engine migrate_engine;
     std::poisson_distribution<int> distribution;
+    std::uniform_int_distribution<> migrate_distribution;
 };
 
 #endif

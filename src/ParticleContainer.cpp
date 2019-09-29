@@ -2,16 +2,23 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <algorithm>
 #include <cassert>
 
-ParticleContainer::ParticleContainer() : global_id(0), distribution(std::poisson_distribution<int>(1.0)) {
+ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), distribution(std::poisson_distribution<int>(1.0)) {
   engine.seed(240694);
-  std::cout << "Setting default crossing average and seed!" << std::endl;
+  migrate_engine.seed(240694);
+  migrate_distribution = std::uniform_int_distribution<>(1, 100);
+  std::cout << "Setting default crossing average (1.0) and seed!" << std::endl;
+  std::cout << "Setting default migrate chance of 10%!" << std::endl;
 }
 
-ParticleContainer::ParticleContainer(const int global_id_start_, const int ave_crossings, const int seed) : global_id(global_id_start_), distribution(std::poisson_distribution<int>(ave_crossings)) {
+ParticleContainer::ParticleContainer(const int global_id_start_, const int ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), distribution(std::poisson_distribution<int>(ave_crossings)) {
   engine.seed(seed);
+  migrate_engine.seed(seed);
+  migrate_distribution = std::uniform_int_distribution<>(1, 100);
   std::cout << "Setting average crossings: " << ave_crossings << ", seed: " << seed << std::endl;
+  std::cout << "Setting migration chance: " << migrate_chance << "%!" << std::endl;
 }
 
 inline Particle& ParticleContainer::operator[](const int idx) {
@@ -43,16 +50,44 @@ void ParticleContainer::setNumMoves() {
   }
 }
 
-void ParticleContainer::moveKernel(const int part_ns) {
+void ParticleContainer::moveKernel(const int start, const int end, const int part_ns) {
   int total_ns = 0;
-  for(auto &p : particles) {
-    total_ns += p.num_moves * part_ns;
-    p.num_moves = 0;
+  for(int iPart = start; iPart < end; iPart++) {
+    
+    while(particles[iPart].num_moves > 0) {
+      particles[iPart].num_moves--;
+      total_ns += part_ns;
+      
+      if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
+        const int migrate_roll = migrate_distribution(migrate_engine);
+        if(migrate_roll <= migrate_chance) {
+          migrate_list.push_back(iPart); // FIXME, this should be idx in vector
+          break; // Move on as we're done with this one
+        }
+      }
+    }
   }
   std::this_thread::sleep_for(std::chrono::nanoseconds(total_ns));
   
   //double sec = total_ns / 1e9;
   //std::cout << "Move time: " << sec << std::endl;
+  //for(auto& m : migrate_list) std::cout << m << std::endl; // For now dump list for debug
+}
+
+void ParticleContainer::compactList() {
+  int rm_index = 0;
+  particles.erase(
+    std::remove_if(std::begin(particles), std::end(particles), [&](Particle& part) {
+      if(migrate_list.size() != rm_index && &part - &particles[0] == migrate_list[rm_index]) {
+        rm_index++;
+        return true;
+      }
+      return false;
+    }),
+    std::end(particles)
+  );
+
+  migrate_list.clear();
 }
 
 void ParticleContainer::dumpParticles() {

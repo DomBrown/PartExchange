@@ -2,7 +2,7 @@
 #define PARTICLE_HPP
 
 struct Particle {
-  const int id;
+  int id;
   int num_moves;
   
   // Pad to 96 bytes so that sizes match
@@ -10,6 +10,8 @@ struct Particle {
 
   Particle(const int id_);
   Particle(const int id_, const int num_moves_);
+
+  Particle& operator=(const Particle & in);
 };
 
 #endif
