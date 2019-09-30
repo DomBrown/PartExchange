@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cassert>
 
-ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), distribution(std::poisson_distribution<int>(1.0)) {
+ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
   engine.seed(240694);
   migrate_engine.seed(240694);
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
@@ -13,7 +13,7 @@ ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), distr
   std::cout << "Setting default migrate chance of 10%!" << std::endl;
 }
 
-ParticleContainer::ParticleContainer(const int global_id_start_, const int ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), distribution(std::poisson_distribution<int>(ave_crossings)) {
+ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
   engine.seed(seed);
   migrate_engine.seed(seed);
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
@@ -51,7 +51,7 @@ void ParticleContainer::setNumMoves() {
 }
 
 void ParticleContainer::moveKernel(const int start, const int end, const int part_ns) {
-  int total_ns = 0;
+  unsigned long total_ns = 0;
   for(int iPart = start; iPart < end; iPart++) {
     
     while(particles[iPart].num_moves > 0) {
@@ -61,7 +61,7 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
       if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
         const int migrate_roll = migrate_distribution(migrate_engine);
         if(migrate_roll <= migrate_chance) {
-          migrate_list.push_back(iPart); // FIXME, this should be idx in vector
+          migrate_list.push_back(iPart);
           break; // Move on as we're done with this one
         }
       }
@@ -69,7 +69,8 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
   }
   std::this_thread::sleep_for(std::chrono::nanoseconds(total_ns));
   
-  //double sec = total_ns / 1e9;
+  double sec = total_ns / 1e9;
+  total_seconds += sec;
   //std::cout << "Move time: " << sec << std::endl;
   //for(auto& m : migrate_list) std::cout << m << std::endl; // For now dump list for debug
 }
@@ -118,4 +119,8 @@ int ParticleContainer::capacity() {
 
 int ParticleContainer::size() {
   return particles.size();
+}
+
+double ParticleContainer::getTimeMoved() {
+  return total_seconds;
 }

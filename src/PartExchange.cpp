@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 
   const int nsteps = input_deck["Timesteps"].as<int>();
   const int nparticles = input_deck["Particle Count"].as<int>();
-  const int ave_crossings = input_deck["Average Crossings"].as<int>();
+  const double ave_crossings = input_deck["Average Crossings"].as<double>();
   const int rng_seed = input_deck["Crossing RNG Seed"].as<int>();
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
   const int migration_chance = input_deck["Migration Chance"].as<int>();
@@ -39,12 +39,14 @@ int main(int argc, char** argv) {
     // distribution we set up
     particles.setNumMoves();
     
-    particles.dumpParticles();
+    //particles.dumpParticles();
     // Do the move
     particles.moveKernel(0, particles.size(), move_part_ns);
     particles.compactList();
-    particles.dumpParticles();
+    //particles.dumpParticles();
   }
+
+  std::cout << "Total Move time: " << particles.getTimeMoved() << std::endl;
 
   return 0;
 }

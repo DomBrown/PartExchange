@@ -7,7 +7,7 @@
 class ParticleContainer {
   public:
     ParticleContainer();
-    ParticleContainer(const int global_id_start_, const int ave_crossings, const int migrate_chance_, const int seed);
+    ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Access operators
     inline Particle& operator[](const int idx);
@@ -53,12 +53,16 @@ class ParticleContainer {
 
     // Get the current max capacity of the container
     int capacity();
+
+    // Query total time spent moving particles so far (sum of sleeps)
+    double getTimeMoved();
   
   private:
     std::vector<Particle> particles;
     std::vector<int> migrate_list;
     int global_id;
     int migrate_chance;
+    double total_seconds;
 
     std::default_random_engine engine;
     std::default_random_engine migrate_engine;
