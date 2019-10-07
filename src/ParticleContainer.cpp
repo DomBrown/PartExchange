@@ -112,7 +112,6 @@ int ParticleContainer::doMigration(int& next_start) {
   );
   
   compactList();
-  migrate_list.clear();
   next_start = particles.size();
 
   // Ensure there is enough space
