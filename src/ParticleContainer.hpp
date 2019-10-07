@@ -10,8 +10,8 @@ class ParticleContainer {
     ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Access operators
-    inline Particle& operator[](const int idx);
-    inline const Particle& operator[](const int idx) const;
+    Particle& operator[](const int idx);
+    const Particle& operator[](const int idx) const;
 
     // Adds a newly created particle with unique ID to the
     // end of the vector. Returns the index
@@ -31,6 +31,8 @@ class ParticleContainer {
     
     // Does the 'move', and marks particles for migration
     void moveKernel(const int start, const int end, const int part_ns);
+
+    int doMigration(int& next_start);
 
     // Takes the particle list and compacts it by removing all particles
     // that are migrated
@@ -68,6 +70,8 @@ class ParticleContainer {
     std::default_random_engine migrate_engine;
     std::poisson_distribution<int> distribution;
     std::uniform_int_distribution<> migrate_distribution;
+
+    int rank;
 };
 
 #endif
