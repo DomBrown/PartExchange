@@ -30,7 +30,14 @@ int main(int argc, char** argv) {
   const double ave_crossings = input_deck["Average Crossings"].as<double>();
   const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank; // Make sure each rank seed is different or else we have problems
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
-  const int migration_chance = input_deck["Migration Chance"].as<int>(); // FIXME This should get set to zero if nranks == 0
+  int migration_chance;
+  
+  if(nranks > 1) {
+    migration_chance = input_deck["Migration Chance"].as<int>(); // FIXME This should get set to zero if nranks == 1
+  } else {
+    migration_chance = 0;
+    std::cout << "One rank: Forcing migration chance = 0!" << std::endl;
+  }
 
   int parts_per_rank = nparticles / nranks;
 
@@ -54,6 +61,9 @@ int main(int argc, char** argv) {
     // Setup for move, assign each particle a move count based on the
     // distribution we set up
     particles.setNumMoves();
+
+    // Finish setting up before we do the work for this step
+    MPI_Barrier(MPI_COMM_WORLD);
     
     int total_sent = 0;
     int start = 0;

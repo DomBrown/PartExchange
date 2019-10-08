@@ -14,6 +14,9 @@ ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total
   std::cout << "Setting default migrate chance of 10%!" << std::endl;
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+
+  setupNeighbours();
 }
 
 ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
@@ -24,6 +27,9 @@ ParticleContainer::ParticleContainer(const int global_id_start_, const double av
   std::cout << "Setting migration chance: " << migrate_chance << "%!" << std::endl;
   
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+
+  setupNeighbours();
 }
 
 Particle& ParticleContainer::operator[](const int idx) {
@@ -80,7 +86,7 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
 
 
 int ParticleContainer::doMigration(int& next_start) {
-  int neighbour = (rank == 0) ? 1 : 0;
+  int neighbour = neighbours[0];
   int n_to_send = migrate_list.size();
 
   int nrecv = 0;
@@ -183,4 +189,30 @@ int ParticleContainer::size() {
 
 double ParticleContainer::getTimeMoved() {
   return total_seconds;
+}
+
+// I know this is horrible but it's only temporary
+void ParticleContainer::setupNeighbours() {
+  if(nranks == 1) {
+    neighbours.push_back(MPI_PROC_NULL);
+  } else if(nranks == 2) { // Avoids recording the same neighbour twice in the 2 rank case
+    if(rank == 0) {
+      neighbours.push_back(1);
+    } else {
+      neighbours.push_back(0);
+    }
+  }else {
+    // Assume 1D periodic for now
+    if((rank + 1) < nranks) {
+      neighbours.push_back(rank + 1);
+    } else {
+      neighbours.push_back(0);
+    }
+
+    if((rank - 1) > -1) {
+      neighbours.push_back(rank - 1);
+    } else {
+      neighbours.push_back(nranks - 1);
+    }
+  }
 }

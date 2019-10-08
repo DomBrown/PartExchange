@@ -58,6 +58,8 @@ class ParticleContainer {
 
     // Query total time spent moving particles so far (sum of sleeps)
     double getTimeMoved();
+
+    void setupNeighbours();
   
   private:
     std::vector<Particle> particles;
@@ -72,6 +74,8 @@ class ParticleContainer {
     std::uniform_int_distribution<> migrate_distribution;
 
     int rank;
+    int nranks;
+    std::vector<int> neighbours;
 };
 
 #endif
