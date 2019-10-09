@@ -1,6 +1,7 @@
 #include "Particle.hpp"
 
 #include <iostream>
+#include <cstring>
 
 Particle::Particle() {
   id = -1;
@@ -15,11 +16,15 @@ Particle::Particle(const Particle& in) {
   id = in.id;
   num_moves = in.num_moves;
   dead = in.dead;
+
+  std::memcpy(dummy_data, in.dummy_data, 84);
 }
 
 Particle& Particle::operator=(const Particle& in) {
   id = in.id;
   num_moves = in.num_moves;
   dead = in.dead;
+  
+  std::memcpy(dummy_data, in.dummy_data, 84);
   return *this;
 } 
