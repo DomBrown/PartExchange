@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     migration_chance = input_deck["Migration Chance"].as<int>(); // FIXME This should get set to zero if nranks == 1
   } else {
     migration_chance = 0;
-    std::cout << "One rank: Forcing migration chance = 0!" << std::endl;
+    std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
   }
 
   int parts_per_rank = nparticles / nranks;
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
 
   ParticleContainer particles(start, ave_crossings, migration_chance, rng_seed);
 
-  particles.reserve(parts_per_rank);
+  particles.reserve(parts_per_rank); // Maybe reserve some extra to prevent reallocs later??
 
   for(int i = 0; i < parts_per_rank; i++)
     particles.addParticle();
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     
     int total_sent = 0;
     int start = 0;
-
+    
     do {
       // Do the move
       particles.moveKernel(start, particles.size(), move_part_ns);

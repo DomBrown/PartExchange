@@ -4,9 +4,10 @@
 struct Particle {
   int id;
   int num_moves;
+  int dead;
   
   // Pad to 96 bytes so that sizes match
-  char dummy_data[88];
+  char dummy_data[84];
 
   Particle();
 

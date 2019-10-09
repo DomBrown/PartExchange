@@ -72,6 +72,7 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
       if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
         const int migrate_roll = migrate_distribution(migrate_engine);
         if(migrate_roll <= migrate_chance) {
+          particles[iPart].dead = 1;
           migrate_list.push_back(iPart);
           break; // Move on as we're done with this one
         }
@@ -120,10 +121,11 @@ int ParticleContainer::doMigration(int& next_start) {
   compactList();
   next_start = particles.size();
 
-  // Ensure there is enough space
+  // Ensure there is enough space, only expands if needed
   reserveAdditional(nrecv);
 
   for(int i = 0; i < recvbuf.size(); i++) {
+    recvbuf[i].dead = 0;
     particles.push_back(recvbuf[i]);
   }
 
@@ -141,18 +143,25 @@ int ParticleContainer::doMigration(int& next_start) {
 }
 
 void ParticleContainer::compactList() {
-  int rm_index = 0;
-  particles.erase(
-    std::remove_if(std::begin(particles), std::end(particles), [&](Particle& part) {
-      if(migrate_list.size() != rm_index && &part - &particles[0] == migrate_list[rm_index]) {
-        rm_index++;
-        return true;
-      }
-      return false;
-    }),
-    std::end(particles)
-  );
+  auto back = particles.size() - 1;
+  auto last_valid = particles.size() - migrate_list.size();
 
+  for(int i = 0; i < migrate_list.size(); i++) {
+    auto which_dead = migrate_list[i];
+    
+    if(which_dead >= last_valid)
+      continue;
+    
+    while(back > which_dead && (particles[back].dead))
+      back--;
+    
+    particles[which_dead] = particles[back];
+    back--;
+  }
+  
+  int new_size = particles.size() - migrate_list.size();
+  
+  particles.resize(new_size);
   migrate_list.clear();
 }
 
@@ -160,7 +169,7 @@ void ParticleContainer::dumpParticles() {
   
   std::cout << "****** Begin Rank " << rank << " Particle Dump ******" << std::endl;
   for(auto &p : particles) {
-    std::cout << "ID: " << p.id << "\tNumMoves: " << p.num_moves << std::endl;
+    std::cout << "ID: " << p.id << "\tNumMoves: " << p.num_moves << "\tDead: " << p.dead << std::endl;
   }
   std::cout << "******* End Rank " << rank << " Particle Dump *******" << std::endl;
 }
@@ -201,7 +210,7 @@ void ParticleContainer::setupNeighbours() {
     } else {
       neighbours.push_back(0);
     }
-  }else {
+  } else {
     // Assume 1D periodic for now
     if((rank + 1) < nranks) {
       neighbours.push_back(rank + 1);
