@@ -3,6 +3,7 @@
 #include "Particle.hpp"
 #include <vector>
 #include <random>
+#include <utility>
 
 class ParticleContainer {
   public:
@@ -76,7 +77,7 @@ class ParticleContainer {
     int rank;
     int nranks;
     std::vector<int> neighbours;
-    std::vector<int> my_send_counts;
+    std::vector<std::pair<int,int>> particle_dests;
 };
 
 #endif
