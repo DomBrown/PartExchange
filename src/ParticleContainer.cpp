@@ -17,6 +17,7 @@ ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
   setupNeighbours();
+  my_send_counts.resize(neighbours.size());
 }
 
 ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
@@ -30,6 +31,7 @@ ParticleContainer::ParticleContainer(const int global_id_start_, const double av
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
   setupNeighbours();
+  my_send_counts.resize(neighbours.size());
 }
 
 Particle& ParticleContainer::operator[](const int idx) {
@@ -88,21 +90,24 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
 
 int ParticleContainer::doMigration(int& next_start) {
   int neighbour = neighbours[0];
-  int n_to_send = migrate_list.size();
+  
+  my_send_counts[0] = migrate_list.size();
+  std::vector<int> my_recv_counts(neighbours.size());
 
-  int nrecv = 0;
+  MPI_Status status[2];
+  MPI_Request request[2];
+
   // Work out how many particles we are expecting
-  MPI_Sendrecv(
-    &n_to_send, 1, MPI_INT, neighbour, 0,
-    &nrecv, 1, MPI_INT, neighbour, 0,
-    MPI_COMM_WORLD,
-    MPI_STATUS_IGNORE
-  );
+  MPI_Isend(my_send_counts.data(), 1, MPI_INT, neighbour, 0, MPI_COMM_WORLD, &request[0]);
+
+  MPI_Irecv(my_recv_counts.data(), 1, MPI_INT, neighbour, 0, MPI_COMM_WORLD, &request[1]);
+
+  MPI_Waitall(2, request, status);
 
   std::vector<Particle> sendbuf;
   std::vector<Particle> recvbuf;
-  sendbuf.reserve(n_to_send);
-  recvbuf.resize(nrecv);
+  sendbuf.reserve(my_send_counts[0]);
+  recvbuf.resize(my_recv_counts[0]);
 
   // Pack send buffer
   for(int i = 0; i < migrate_list.size(); i++) {
@@ -111,18 +116,17 @@ int ParticleContainer::doMigration(int& next_start) {
   }
 
   // Migrate the particles
-  MPI_Sendrecv(
-    sendbuf.data(), n_to_send*sizeof(Particle), MPI_CHAR, neighbour, 0,
-    recvbuf.data(), nrecv*sizeof(Particle), MPI_CHAR, neighbour, 0,
-    MPI_COMM_WORLD,
-    MPI_STATUS_IGNORE
-  );
+  MPI_Isend(sendbuf.data(), my_send_counts[0]*sizeof(Particle), MPI_CHAR, neighbour, 0, MPI_COMM_WORLD, &request[0]);
+
+  MPI_Irecv(recvbuf.data(), my_recv_counts[0]*sizeof(Particle), MPI_CHAR, neighbour, 0, MPI_COMM_WORLD, &request[1]);
+
+  MPI_Waitall(2, request, status);
   
   compactList();
   next_start = particles.size();
 
   // Ensure there is enough space, only expands if needed
-  reserveAdditional(nrecv);
+  reserveAdditional(my_recv_counts[0]);
 
   for(int i = 0; i < recvbuf.size(); i++) {
     recvbuf[i].dead = 0;
@@ -131,7 +135,7 @@ int ParticleContainer::doMigration(int& next_start) {
 
   int total_send = 0;
   MPI_Allreduce(
-    &n_to_send,
+    my_send_counts.data(),
     &total_send,
     1,
     MPI_INT,

@@ -76,6 +76,7 @@ class ParticleContainer {
     int rank;
     int nranks;
     std::vector<int> neighbours;
+    std::vector<int> my_send_counts;
 };
 
 #endif
