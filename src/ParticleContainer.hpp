@@ -4,6 +4,7 @@
 #include <vector>
 #include <random>
 #include <utility>
+#include <cassert>
 
 class ParticleContainer {
   public:
@@ -11,8 +12,15 @@ class ParticleContainer {
     ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Access operators
-    Particle& operator[](const int idx);
-    const Particle& operator[](const int idx) const;
+    inline Particle& operator[](const int idx) {
+      assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
+      return particles[idx];
+    }
+
+    inline const Particle& operator[](const int idx) const {
+      assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
+      return particles[idx];
+    }
 
     // Adds a newly created particle with unique ID to the
     // end of the vector. Returns the index

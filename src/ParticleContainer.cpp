@@ -4,7 +4,6 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
-#include <cassert>
 
 ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
   engine.seed(240694);
@@ -34,15 +33,6 @@ ParticleContainer::ParticleContainer(const int global_id_start_, const double av
   particle_dests.reserve(100);
 }
 
-Particle& ParticleContainer::operator[](const int idx) {
-  assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
-  return particles[idx];
-}
-
-const Particle& ParticleContainer::operator[](const int idx) const {
-  assert(("Particle container bounds error!", (idx < particles.size()) && (idx >= 0)));
-  return particles[idx];
-}
 
 int ParticleContainer::addParticle() {
   particles.push_back(Particle(global_id++));
