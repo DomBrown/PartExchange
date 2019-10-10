@@ -2,10 +2,41 @@
 #include <vt/transport.h>
 
 #include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
 
 #include "yaml-cpp/yaml.h"
 
 #include "ParticleContainer.hpp"
+
+// Takes a vector of times, and dumps out some useful stats
+void getStatistics(const std::vector<double>& times) {
+  double average, total = 0.;
+  double max = -1e99;
+  double min = 1e99;
+
+  for(auto& t : times) {
+    total += t;
+    min = std::min(min, t);
+    max = std::max(max, t);
+  }
+
+  average = total / times.size();
+
+  double sum_devs = 0.;
+  for(auto& t : times) {
+    sum_devs += pow((t - average), 2);
+  }
+
+  sum_devs /= times.size();
+  double stdev = sqrt(sum_devs);
+
+  std::cout << "Min: " << min << std::endl;
+  std::cout << "Average: " << average << std::endl;
+  std::cout << "Max: " << max << std::endl;
+  std::cout << "StDev: " << stdev << std::endl;
+}
 
 int main(int argc, char** argv) {
 
@@ -17,7 +48,7 @@ int main(int argc, char** argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
   YAML::Node input_deck;
-  
+
   if(argc < 2) {
     std::cout << "Provide an input YAML file!" << std::endl;
     return 1;
@@ -31,9 +62,10 @@ int main(int argc, char** argv) {
   const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank; // Make sure each rank seed is different or else we have problems
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
   int migration_chance;
-  
+
+  // Never migrate if ranks < 2
   if(nranks > 1) {
-    migration_chance = input_deck["Migration Chance"].as<int>(); // FIXME This should get set to zero if nranks == 1
+    migration_chance = input_deck["Migration Chance"].as<int>();
   } else {
     migration_chance = 0;
     std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
@@ -52,6 +84,8 @@ int main(int argc, char** argv) {
 
   // Wait for everyone to load their particles
   MPI_Barrier(MPI_COMM_WORLD);
+
+  double commtime = 0.;
 
   for(int step = 0; step < nsteps; step++) {
     if(rank == 0) {
@@ -72,17 +106,38 @@ int main(int argc, char** argv) {
       // Do the move
       particles.moveKernel(start, particles.size(), move_part_ns);
       
+      double commstart = MPI_Wtime();
+
       total_sent = particles.doMigration(start);
+
+      commtime += (MPI_Wtime() - commstart);
     } while(total_sent > 0);
 
   }
   
+  // Make sure everyone is done before we process the timing data
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rank == 0) {
-    std::cout << "Rank " << rank << " Total Move time: " << particles.getTimeMoved() << std::endl;
-  }
 
   std::cout << "Rank " << rank << " Final Count " << particles.size() << std::endl;
+
+  std::vector<double> comm_times, move_times;
+  comm_times.resize(nranks);
+  move_times.resize(nranks);
+
+  // Gather up times from all ranks and generate statistics
+  MPI_Gather(&commtime, 1, MPI_DOUBLE, comm_times.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  double my_move_time = particles.getTimeMoved();
+  MPI_Gather(&my_move_time, 1, MPI_DOUBLE, move_times.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  if(rank == 0) {
+    std::cout << "***** Migration Statistics *****" << std::endl;
+    getStatistics(comm_times);
+    std::cout << std::endl;
+
+    std::cout << "****** Compute Statistics ******" << std::endl;
+    getStatistics(move_times);
+  }
 
   MPI_Finalize();
 
