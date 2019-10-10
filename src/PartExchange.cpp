@@ -75,6 +75,8 @@ int main(int argc, char** argv) {
 
   int start = parts_per_rank * rank;
 
+  int initial_total = parts_per_rank * nranks;
+
   ParticleContainer particles(start, ave_crossings, migration_chance, rng_seed);
 
   particles.reserve(parts_per_rank); // Maybe reserve some extra to prevent reallocs later??
@@ -130,6 +132,10 @@ int main(int argc, char** argv) {
   double my_move_time = particles.getTimeMoved();
   MPI_Gather(&my_move_time, 1, MPI_DOUBLE, move_times.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+  int my_final_count = particles.size();
+  int total_count = 0;
+  MPI_Reduce(&my_final_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
   if(rank == 0) {
     std::cout << "***** Migration Statistics *****" << std::endl;
     getStatistics(comm_times);
@@ -137,6 +143,10 @@ int main(int argc, char** argv) {
 
     std::cout << "****** Compute Statistics ******" << std::endl;
     getStatistics(move_times);
+
+    if(total_count != initial_total) {
+      std::cout << "ERROR: Beginning and final particle counts do not match!" << std::endl;
+    }
   }
 
   MPI_Finalize();
