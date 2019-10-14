@@ -5,13 +5,14 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #include "yaml-cpp/yaml.h"
 
 #include "ParticleContainer.hpp"
 
 // Takes a vector of times, and dumps out some useful stats
-void getStatistics(const std::vector<double>& times) {
+void getStatistics(const std::vector<double>& times, const std::string& timerName) {
   double average, total = 0.;
   double max = -1e99;
   double min = 1e99;
@@ -32,10 +33,10 @@ void getStatistics(const std::vector<double>& times) {
   sum_devs /= times.size();
   double stdev = sqrt(sum_devs);
 
-  std::cout << "Min: " << min << std::endl;
-  std::cout << "Average: " << average << std::endl;
-  std::cout << "Max: " << max << std::endl;
-  std::cout << "StDev: " << stdev << std::endl;
+  std::cout << timerName << " Min: " << min << std::endl;
+  std::cout << timerName << " Average: " << average << std::endl;
+  std::cout << timerName << " Max: " << max << std::endl;
+  std::cout << timerName << " StDev: " << stdev << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -137,12 +138,11 @@ int main(int argc, char** argv) {
   MPI_Reduce(&my_final_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if(rank == 0) {
-    std::cout << "***** Migration Statistics *****" << std::endl;
-    getStatistics(comm_times);
+    getStatistics(move_times, "Computation");
+    
     std::cout << std::endl;
 
-    std::cout << "****** Compute Statistics ******" << std::endl;
-    getStatistics(move_times);
+    getStatistics(comm_times, "Migration");
 
     if(total_count != initial_total) {
       std::cout << "ERROR: Beginning and final particle counts do not match!" << std::endl;
