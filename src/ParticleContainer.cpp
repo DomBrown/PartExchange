@@ -8,31 +8,42 @@
 ParticleContainer::ParticleContainer() : 
   global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
   
-  engine.seed(240694);
-  migrate_engine.seed(240694);
-  migrate_distribution = std::uniform_int_distribution<>(1, 100);
-  std::cout << "Setting default crossing average (1.0) and seed!" << std::endl;
-  std::cout << "Setting default migrate chance of 10%!" << std::endl;
-
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
   setupNeighbours();
+
+  engine.seed(240694);
+  migrate_engine.seed(240694);
+  neighbour_engine.seed(240694);
+
+  migrate_distribution = std::uniform_int_distribution<>(1, 100);
+  neighbour_distribution = std::uniform_int_distribution<>(0, neighbours.size() - 1);
+
+  std::cout << "Setting default crossing average (1.0) and seed!" << std::endl;
+  std::cout << "Setting default migrate chance of 10%!" << std::endl;
+
   particle_dests.reserve(100);
 }
 
 ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
   global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
-  engine.seed(seed);
-  migrate_engine.seed(seed);
-  migrate_distribution = std::uniform_int_distribution<>(1, 100);
-  std::cout << "Setting average crossings: " << ave_crossings << ", seed: " << seed << std::endl;
-  std::cout << "Setting migration chance: " << migrate_chance << "%!" << std::endl;
-  
+
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
   setupNeighbours();
+
+  engine.seed(seed);
+  migrate_engine.seed(seed);
+  neighbour_engine.seed(seed);
+
+  migrate_distribution = std::uniform_int_distribution<>(1, 100);
+  neighbour_distribution = std::uniform_int_distribution<>(0, neighbours.size() - 1);
+
+  std::cout << "Setting average crossings: " << ave_crossings << ", seed: " << seed << std::endl;
+  std::cout << "Setting migration chance: " << migrate_chance << "%!" << std::endl;
+
   particle_dests.reserve(100);
 }
 
@@ -67,7 +78,8 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
       if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
         const int migrate_roll = migrate_distribution(migrate_engine);
         if(migrate_roll <= migrate_chance) {
-          int neighbour_idx = iPart % neighbours.size();  // Change this to a rand dist. later
+          const int neighbour_idx = neighbour_distribution(neighbour_engine); // Send to a rand neighbour
+          if(rank == 1) std::cout << neighbour_idx << std::endl;
           particles[iPart].dead = 1;
           migrate_list.push_back(iPart);
           particle_dests.emplace_back(iPart, neighbour_idx);

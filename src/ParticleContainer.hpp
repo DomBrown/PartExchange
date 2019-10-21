@@ -79,8 +79,10 @@ class ParticleContainer {
 
     std::mt19937 engine;
     std::mt19937 migrate_engine;
+    std::mt19937 neighbour_engine;
     std::poisson_distribution<int> distribution;
     std::uniform_int_distribution<> migrate_distribution;
+    std::uniform_int_distribution<> neighbour_distribution;
 
     int rank;
     int nranks;
