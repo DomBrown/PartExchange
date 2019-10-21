@@ -63,10 +63,12 @@ set(SOURCE_FILES
   src/PartExchange.cpp
   src/Particle.cpp
   src/ParticleContainer.cpp
+  src/OutputWriter.cpp
 )
 set(HEADER_FILES
   src/Particle.hpp
   src/ParticleContainer.hpp
+  src/OutputWriter.hpp
 )
 
 add_executable(PartExchange ${SOURCE_FILES} ${HEADER_FILES})

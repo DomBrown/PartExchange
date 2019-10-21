@@ -10,34 +10,7 @@
 #include "yaml-cpp/yaml.h"
 
 #include "ParticleContainer.hpp"
-
-// Takes a vector of times, and dumps out some useful stats
-void getStatistics(const std::vector<double>& times, const std::string& timerName) {
-  double average, total = 0.;
-  double max = -1e99;
-  double min = 1e99;
-
-  for(auto& t : times) {
-    total += t;
-    min = std::min(min, t);
-    max = std::max(max, t);
-  }
-
-  average = total / times.size();
-
-  double sum_devs = 0.;
-  for(auto& t : times) {
-    sum_devs += pow((t - average), 2);
-  }
-
-  sum_devs /= times.size();
-  double stdev = sqrt(sum_devs);
-
-  std::cout << timerName << " Min: " << min << std::endl;
-  std::cout << timerName << " Average: " << average << std::endl;
-  std::cout << timerName << " Max: " << max << std::endl;
-  std::cout << timerName << " StDev: " << stdev << std::endl;
-}
+#include "OutputWriter.hpp"
 
 int main(int argc, char** argv) {
 
@@ -138,11 +111,16 @@ int main(int argc, char** argv) {
   MPI_Reduce(&my_final_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if(rank == 0) {
-    getStatistics(move_times, "Computation");
+    std::string fname;
+    if(input_deck["Statistics File Name"]) {
+      fname = input_deck["Statistics File Name"].as<std::string>();
+    }
     
-    std::cout << std::endl;
+    OutputWriter writer(fname);
+    
+    writer.writeStatistics("Computation", move_times);
 
-    getStatistics(comm_times, "Migration");
+    writer.writeStatistics("Migration", comm_times);
 
     if(total_count != initial_total) {
       std::cout << "ERROR: Beginning and final particle counts do not match!" << std::endl;
