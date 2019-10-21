@@ -5,7 +5,9 @@
 #include <thread>
 #include <algorithm>
 
-ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
+ParticleContainer::ParticleContainer() : 
+  global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
+  
   engine.seed(240694);
   migrate_engine.seed(240694);
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
@@ -19,7 +21,8 @@ ParticleContainer::ParticleContainer() : global_id(0), migrate_chance(10), total
   particle_dests.reserve(100);
 }
 
-ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) : global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
+ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
+  global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
   engine.seed(seed);
   migrate_engine.seed(seed);
   migrate_distribution = std::uniform_int_distribution<>(1, 100);

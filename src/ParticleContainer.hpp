@@ -77,8 +77,8 @@ class ParticleContainer {
     int migrate_chance;
     double total_seconds;
 
-    std::default_random_engine engine;
-    std::default_random_engine migrate_engine;
+    std::mt19937 engine;
+    std::mt19937 migrate_engine;
     std::poisson_distribution<int> distribution;
     std::uniform_int_distribution<> migrate_distribution;
 
