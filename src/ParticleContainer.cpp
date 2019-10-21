@@ -78,11 +78,7 @@ void ParticleContainer::moveKernel(const int start, const int end, const int par
       if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
         const int migrate_roll = migrate_distribution(migrate_engine);
         if(migrate_roll <= migrate_chance) {
-          const int neighbour_idx = neighbour_distribution(neighbour_engine); // Send to a rand neighbour
-          if(rank == 1) std::cout << neighbour_idx << std::endl;
-          particles[iPart].dead = 1;
-          migrate_list.push_back(iPart);
-          particle_dests.emplace_back(iPart, neighbour_idx);
+          migrateParticle(iPart);
           break; // Move on as we're done with this one
         }
       }
@@ -210,7 +206,12 @@ void ParticleContainer::dumpParticles() {
   std::cout << "******* End Rank " << rank << " Particle Dump *******" << std::endl;
 }
 
-void ParticleContainer::migrateParticle(const int idx) {}
+void ParticleContainer::migrateParticle(const int idx) {
+  const int neighbour_idx = neighbour_distribution(neighbour_engine); // Send to a rand neighbour
+  particles[idx].dead = 1;
+  migrate_list.push_back(idx);
+  particle_dests.emplace_back(idx, neighbour_idx);
+}
 
 int ParticleContainer::reserve(const int amount) {
   particles.reserve(amount);
