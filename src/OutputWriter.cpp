@@ -37,18 +37,16 @@ void OutputWriter::writeStatistics(const std::string& name, const std::vector<do
   sum_devs /= data.size();
   double stdev = sqrt(sum_devs);
 
-  YAML::Emitter emitter;
+  YAML::Node parent;
+  YAML::Node dataNode;
 
-  emitter << YAML::BeginMap;
-  emitter << YAML::Key << name + " Min";
-  emitter << YAML::Value << fmt::format("{:.5f}", min);
-  emitter << YAML::Key << name + " Average";
-  emitter << YAML::Value << fmt::format("{:.5f}", average);
-  emitter << YAML::Key << name + " Max";
-  emitter << YAML::Value << fmt::format("{:.5f}", max);
-  emitter << YAML::Key << name + " StDev";
-  emitter << YAML::Value << fmt::format("{:.5f}", stdev);
+  dataNode["Min"] = fmt::format("{:.5f}", min);
+  dataNode["Average"] = fmt::format("{:.5f}", average);
+  dataNode["Max"] = fmt::format("{:.5f}", max);
+  dataNode["StDev"] = fmt::format("{:.5f}", stdev);
 
-  outfile << emitter.c_str();
-  outfile << std::endl;
+  parent[name] = dataNode;
+
+  outfile << parent;
+  outfile << std::endl << std::endl;
 }
