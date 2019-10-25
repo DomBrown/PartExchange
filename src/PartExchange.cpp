@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <random>
 #include <cmath>
 #include <string>
 
@@ -11,6 +12,44 @@
 
 #include "ParticleContainer.hpp"
 #include "OutputWriter.hpp"
+
+int distributeParticles(const int nparticles, const int my_rank, const int nranks, const double stdev, const int rng_seed) {
+  
+  std::vector<int> rank_counts;
+  rank_counts.resize(nranks);
+  
+  // Root generates the particle counts, then bcast them out
+  if(my_rank == 0) {
+    std::mt19937 pseudorandom_generator(rng_seed);
+
+    auto maxrank = nranks - 1;
+
+    double mean = nparticles/nranks;
+    auto min_allowed = 0;
+    auto max_allowed = nparticles;
+    std::normal_distribution<> distribution{mean, stdev};
+
+    for(int rank = 0; rank < nranks; rank++) {
+      int amount = 0.; 
+      if(rank == maxrank) {
+        amount = max_allowed;
+      } else {
+        // Resample until we get a valid value
+        do {
+          amount = std::round(distribution(pseudorandom_generator));
+        } while(!((amount > min_allowed) && (amount < max_allowed)));
+      }   
+      
+      rank_counts[rank] = amount;
+      max_allowed -= amount;
+      std::cout << "Rank " << rank << " has " << rank_counts[rank] << std::endl;
+    }
+  }
+
+  MPI_Bcast(rank_counts.data(), nranks, MPI_INT, 0, MPI_COMM_WORLD);
+
+  return rank_counts[my_rank];
+}
 
 int main(int argc, char** argv) {
 
@@ -36,6 +75,7 @@ int main(int argc, char** argv) {
   const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank; // Make sure each rank seed is different or else we have problems
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
   int migration_chance;
+  const double dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
 
   // Never migrate if ranks < 2
   if(nranks > 1) {
@@ -45,17 +85,13 @@ int main(int argc, char** argv) {
     std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
   }
 
-  int parts_per_rank = nparticles / nranks;
+  ParticleContainer particles(0, ave_crossings, migration_chance, rng_seed);
+  
+  const int my_initial_total = distributeParticles(nparticles, rank, nranks, dist_stdev, rng_seed);
 
-  int start = parts_per_rank * rank;
+  particles.reserve(my_initial_total); 
 
-  int initial_total = parts_per_rank * nranks;
-
-  ParticleContainer particles(start, ave_crossings, migration_chance, rng_seed);
-
-  particles.reserve(parts_per_rank); // Maybe reserve some extra to prevent reallocs later??
-
-  for(int i = 0; i < parts_per_rank; i++)
+  for(int i = 0; i < my_initial_total; i++)
     particles.addParticle();
 
   // Wait for everyone to load their particles
@@ -122,7 +158,7 @@ int main(int argc, char** argv) {
 
     writer.writeStatistics("Migration", comm_times);
 
-    if(total_count != initial_total) {
+    if(total_count != nparticles) {
       std::cout << "ERROR: Beginning and final particle counts do not match!" << std::endl;
     }
   }

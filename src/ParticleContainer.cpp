@@ -20,9 +20,6 @@ ParticleContainer::ParticleContainer() :
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
   neighbour_distribution = std::uniform_int_distribution<>(0, neighbours.size() - 1);
 
-  std::cout << "Setting default crossing average (1.0) and seed!" << std::endl;
-  std::cout << "Setting default migrate chance of 10%!" << std::endl;
-
   particle_dests.reserve(100);
 }
 
@@ -40,9 +37,6 @@ ParticleContainer::ParticleContainer(const int global_id_start_, const double av
 
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
   neighbour_distribution = std::uniform_int_distribution<>(0, neighbours.size() - 1);
-
-  std::cout << "Setting average crossings: " << ave_crossings << ", seed: " << seed << std::endl;
-  std::cout << "Setting migration chance: " << migrate_chance << "%!" << std::endl;
 
   particle_dests.reserve(100);
 }
