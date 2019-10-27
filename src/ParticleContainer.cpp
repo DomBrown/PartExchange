@@ -8,10 +8,9 @@
 ParticleContainer::ParticleContainer() : 
   global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
   
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-
-  setupNeighbours();
+  rank = vt::theContext()->getNode();
+  nranks = vt::theContext()->getNumNodes();
+  //setupNeighbours();
 
   engine.seed(240694);
   migrate_engine.seed(240694);
@@ -26,10 +25,10 @@ ParticleContainer::ParticleContainer() :
 ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
   global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
 
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+  rank = vt::theContext()->getNode();
+  nranks = vt::theContext()->getNumNodes();
 
-  setupNeighbours();
+  //setupNeighbours();
 
   engine.seed(seed);
   migrate_engine.seed(seed);

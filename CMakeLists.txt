@@ -60,7 +60,7 @@ find_package_local(vt "${vt_DIR}/cmake")
 find_package(YamlCpp REQUIRED)
 
 set(SOURCE_FILES
-  src/PartExchange.cpp
+  src/PartExchangeVT.cpp
   src/Particle.cpp
   src/ParticleContainer.cpp
   src/OutputWriter.cpp

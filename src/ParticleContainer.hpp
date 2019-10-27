@@ -1,6 +1,7 @@
 #ifndef PARTICLE_CONTAINER_HPP
 #define PARTICLE_CONTAINER_HPP
 #include "Particle.hpp"
+#include <vt/transport.h>
 #include <vector>
 #include <random>
 #include <utility>
