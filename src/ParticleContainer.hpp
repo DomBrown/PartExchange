@@ -38,7 +38,9 @@ class ParticleContainer {
     // Currently this is a poisson distribution to get the number of crossings
     // Moves is then crossings + 1
     void setNumMoves();
-    
+
+    void moveParticles(vt::EpochType epoch);
+
     // Does the 'move', and marks particles for migration
     void moveKernel(const int start, const int end);
 

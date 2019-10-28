@@ -26,8 +26,7 @@ void executeStep(int step, int num_steps, ParticleContainer& particles) {
     }
   });
 
-  particles.moveKernel(0, particles.size());
-  particles.dumpParticles();
+  particles.moveParticles(epoch);
 
   vt::theTerm()->finishedEpoch(epoch);
 }

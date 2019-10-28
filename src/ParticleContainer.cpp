@@ -10,7 +10,7 @@ ParticleContainer::ParticleContainer() :
   
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
-  //setupNeighbours();
+  setupNeighbours();
 
   engine.seed(240694);
   migrate_engine.seed(240694);
@@ -29,7 +29,7 @@ ParticleContainer::ParticleContainer(const int move_part_ns_, const int global_i
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
 
-  //setupNeighbours();
+  setupNeighbours();
 
   engine.seed(seed);
   migrate_engine.seed(seed);
@@ -55,9 +55,50 @@ int ParticleContainer::addParticle(const Particle& p) {
 }
 
 void ParticleContainer::setNumMoves() {
+  particle_start_idx = 0;
   for(auto &p : particles) {
     int num_crossings = distribution(engine);
     p.num_moves = num_crossings + 1;
+  }
+}
+
+void ParticleContainer::moveParticles(vt::EpochType epoch) {
+  moveKernel(particle_start_idx, particles.size());
+
+  // Migration starts here
+  const int num_neighbours = neighbours.size();
+  std::vector<int> my_send_counts(neighbours.size());
+  std::vector<std::vector<Particle>> my_send_bufs(num_neighbours);
+
+  // Count how many we are sending, and pack them up
+  for(int i = 0; i < particle_dests.size(); i++) {
+    int neigh_idx = particle_dests[i].second;
+
+    my_send_counts[neigh_idx]++;
+  }
+
+  for(int i = 0; i < num_neighbours; i++) {
+    my_send_bufs[i].reserve(my_send_counts[i]);
+  }
+  
+  for(int i = 0; i < particle_dests.size(); i++) {
+    int iPart = particle_dests[i].first;
+    int neigh_idx = particle_dests[i].second;
+    my_send_bufs[neigh_idx].push_back(particles[iPart]);
+  }
+
+  compactList();
+  particle_start_idx = particles.size();
+
+  for(int i = 0; i < num_neighbours; i++) {
+    if(my_send_counts[i] > 0) {
+      auto msg = vt::makeSharedMessage<ParticleMsg>();
+      msg->particles = my_send_bufs[i];
+      vt::envelopeSetEpoch(msg->env, epoch);
+      const vt::NodeType to = neighbours[i];
+      
+      vt::theMsg()->sendMsgAuto<ParticleMsg, particleMigrationHandler>(to, msg);
+    }
   }
 }
 
@@ -85,7 +126,17 @@ void ParticleContainer::moveKernel(const int start, const int end) {
 }
 
 void ParticleContainer::particleMigrationHandler(ParticleMsg *msg) {
-  // Do some stuff here
+  int num_recv = msg->particles.size();
+  reserveAdditional(num_recv);
+
+  for(int i = 0; i < num_recv; i++) {
+    auto p = msg->particles[i];
+    p.dead = 0;
+    particles.push_back(p);
+  }
+
+  auto epoch = vt::theMsg()->getEpoch();
+  moveParticles(epoch);
 }
 
 int ParticleContainer::doMigration(int& next_start) {
