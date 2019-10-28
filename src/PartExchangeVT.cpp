@@ -14,7 +14,6 @@
 
 void executeStep(int step, int num_steps, ParticleContainer& particles) {
 	particles.setNumMoves();
-  particles.dumpParticles();
   vt::theCollective()->barrier();
   
   // This will allow us to detect termination.
@@ -26,6 +25,9 @@ void executeStep(int step, int num_steps, ParticleContainer& particles) {
       executeStep(step+1, num_steps, particles);
     }
   });
+
+  particles.moveKernel(0, particles.size());
+  particles.dumpParticles();
 
   vt::theTerm()->finishedEpoch(epoch);
 }
@@ -39,15 +41,13 @@ int main(int argc, char** argv) {
 
   YAML::Node input_deck;
 
-  /*if(argc < 2) {
+  if(argc < 2) {
     std::cout << "Provide an input YAML file!" << std::endl;
     return 1;
   } else {
     input_deck = YAML::LoadFile(argv[1]);
-    input_deck = YAML::LoadFile("example.yaml");
-  }*/
+  }
 
-  input_deck = YAML::LoadFile("example.yaml");
   const int nsteps = input_deck["Timesteps"].as<int>();
   const int nparticles = input_deck["Particle Count"].as<int>();
   const double ave_crossings = input_deck["Average Crossings"].as<double>();
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
   const int my_nparticles = nparticles / nranks;
   const int my_start = my_nparticles * rank;
 
-  ParticleContainer particles(my_start, ave_crossings, migration_chance, rng_seed);
+  ParticleContainer particles(move_part_ns, my_start, ave_crossings, migration_chance, rng_seed);
   particles.reserve(my_nparticles);
 
   for(int i = 0; i < my_nparticles; i++) {

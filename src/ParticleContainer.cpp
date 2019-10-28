@@ -6,7 +6,7 @@
 #include <algorithm>
 
 ParticleContainer::ParticleContainer() : 
-  global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
+  move_part_ns(1000), global_id(0), migrate_chance(10), total_seconds(0.0), distribution(std::poisson_distribution<int>(1.0)) {
   
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
@@ -22,8 +22,8 @@ ParticleContainer::ParticleContainer() :
   particle_dests.reserve(100);
 }
 
-ParticleContainer::ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
-  global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
+ParticleContainer::ParticleContainer(const int move_part_ns_, const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
+  move_part_ns(move_part_ns_), global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
 
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
@@ -60,13 +60,13 @@ void ParticleContainer::setNumMoves() {
   }
 }
 
-void ParticleContainer::moveKernel(const int start, const int end, const int part_ns) {
+void ParticleContainer::moveKernel(const int start, const int end) {
   unsigned long total_ns = 0;
   for(int iPart = start; iPart < end; iPart++) {
     
     while(particles[iPart].num_moves > 0) {
       particles[iPart].num_moves--;
-      total_ns += part_ns;
+      total_ns += move_part_ns;
       
       if(particles[iPart].num_moves > 0) { // If we only had one move, there was no crossing, so no migration either
         const int migrate_roll = migrate_distribution(migrate_engine);
