@@ -19,14 +19,23 @@ struct Particle {
   Particle(const Particle& in);
 
   Particle& operator=(const Particle & in);
+
+  template <typename SerializerT>
+  void serialize(SerializerT& s) {
+    s | id | num_moves | dead;
+
+    for(int i = 0; i < 84; i++) {
+      s | dummy_data[i];
+    }
+  }
 };
 
 struct ParticleMsg : vt::Message {
   ParticleMsg() = default;
 
   // Add a serialiser that will serialise the particle vector
-  template <typename SerializerType>
-  void serialize(SerializerType& s) {
+  template <typename SerializerT>
+  void serialize(SerializerT& s) {
     s | particles;
   }
 
