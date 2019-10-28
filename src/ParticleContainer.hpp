@@ -10,7 +10,7 @@
 class ParticleContainer {
   public:
     ParticleContainer();
-    ParticleContainer(const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed);
+    ParticleContainer(const int move_part_ns_, const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Access operators
     inline Particle& operator[](const int idx) {
@@ -40,7 +40,7 @@ class ParticleContainer {
     void setNumMoves();
     
     // Does the 'move', and marks particles for migration
-    void moveKernel(const int start, const int end, const int part_ns);
+    void moveKernel(const int start, const int end);
 
     int doMigration(int& next_start);
 
@@ -74,6 +74,7 @@ class ParticleContainer {
   private:
     std::vector<Particle> particles;
     std::vector<int> migrate_list;
+    int move_part_ns;
     int global_id;
     int migrate_chance;
     double total_seconds;
