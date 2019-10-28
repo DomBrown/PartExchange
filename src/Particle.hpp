@@ -1,5 +1,7 @@
 #ifndef PARTICLE_HPP
 #define PARTICLE_HPP
+#include <vt/transport.h>
+#include <vector>
 
 struct Particle {
   int id;
@@ -17,6 +19,19 @@ struct Particle {
   Particle(const Particle& in);
 
   Particle& operator=(const Particle & in);
+};
+
+struct ParticleMsg : vt::Message {
+  ParticleMsg() = default;
+
+  // Add a serialiser that will serialise the particle vector
+  template <typename SerializerType>
+  void serialize(SerializerType& s) {
+    s | particles;
+  }
+
+  public:
+    std::vector<Particle> particles;
 };
 
 #endif
