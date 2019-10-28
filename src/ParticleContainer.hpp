@@ -70,6 +70,9 @@ class ParticleContainer {
     double getTimeMoved();
 
     void setupNeighbours();
+
+    // Handler to be called when we recv particles
+    void particleMigrationHandler(ParticleMsg *msg);
   
   private:
     std::vector<Particle> particles;
@@ -88,6 +91,7 @@ class ParticleContainer {
 
     int rank;
     int nranks;
+    int particle_start_idx;
     std::vector<int> neighbours;
     std::vector<std::pair<int,int>> particle_dests;
 };

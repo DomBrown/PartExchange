@@ -23,7 +23,8 @@ ParticleContainer::ParticleContainer() :
 }
 
 ParticleContainer::ParticleContainer(const int move_part_ns_, const int global_id_start_, const double ave_crossings, const int migrate_chance_, const int seed) :
-  move_part_ns(move_part_ns_), global_id(global_id_start_), migrate_chance(migrate_chance_), total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
+  move_part_ns(move_part_ns_), global_id(global_id_start_), migrate_chance(migrate_chance_),
+  total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)), particle_start_idx(0) {
 
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
@@ -83,6 +84,9 @@ void ParticleContainer::moveKernel(const int start, const int end) {
   total_seconds += sec;
 }
 
+void ParticleContainer::particleMigrationHandler(ParticleMsg *msg) {
+  // Do some stuff here
+}
 
 int ParticleContainer::doMigration(int& next_start) {
   const int num_neighbours = neighbours.size();
