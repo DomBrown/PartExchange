@@ -7,6 +7,8 @@
 #include <utility>
 #include <cassert>
 
+struct NullMsg : vt::Message {};
+
 class ParticleContainer {
   public:
     ParticleContainer();
@@ -39,7 +41,7 @@ class ParticleContainer {
     // Moves is then crossings + 1
     void setNumMoves();
 
-    void moveParticles(vt::EpochType epoch);
+    void moveParticles();
 
     // Does the 'move', and marks particles for migration
     void moveKernel(const int start, const int end);
@@ -72,6 +74,8 @@ class ParticleContainer {
     double getTimeMoved();
 
     void setupNeighbours();
+
+    void moveHandler(NullMsg *msg);
 
     // Handler to be called when we recv particles
     void particleMigrationHandler(ParticleMsg *msg);

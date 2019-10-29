@@ -12,22 +12,37 @@
 #include "ParticleContainer.hpp"
 #include "OutputWriter.hpp"
 
-void executeStep(int step, int num_steps, ParticleContainer& particles) {
-	particles.setNumMoves();
-  vt::theCollective()->barrier();
+typedef vt::objgroup::proxy::Proxy<ParticleContainer> PCProxyType;
+
+void executeStep(int step, int num_steps, PCProxyType& proxy) {
+  auto me = vt::theContext()->getNode();
+
+  if(me == 0) {
+    fmt::print("Starting step {}\n", step);
+  }
   
+  ParticleContainer* particles = proxy[me].get();
+	
+  particles->setNumMoves();
+  vt::theCollective()->barrier();
+
   // This will allow us to detect termination.
   auto epoch = vt::theTerm()->makeEpochCollective();
 
-  vt::theTerm()->addAction(epoch, [step, num_steps, &particles]{
-    fmt::print("{}: step={} finished\n", vt::theContext()->getNode(), step);
+  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, particles, me]{
+    //fmt::print("{}: step={} finished\n", me, step);
     if (step+1 < num_steps) {
-      executeStep(step+1, num_steps, particles);
+      executeStep(step+1, num_steps, proxy);
+    } else {
+      fmt::print("Node {} Final Count: {}\n", me, particles->size());
     }
   });
 
-  particles.moveParticles(epoch);
+  // Start the work with a NullMsg to self
+  auto msg = vt::makeSharedMessage<NullMsg>();
+  vt::envelopeSetEpoch(msg->env, epoch);
 
+  proxy[vt::theContext()->getNode()].send<NullMsg, &ParticleContainer::moveHandler>(msg);
   vt::theTerm()->finishedEpoch(epoch);
 }
 
@@ -59,7 +74,6 @@ int main(int argc, char** argv) {
   // Never migrate if ranks < 2
   if(nranks > 1) {
     migration_chance = input_deck["Migration Chance"].as<int>();
-    migration_chance = 0;
   } else {
     migration_chance = 0;
     std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
@@ -69,21 +83,23 @@ int main(int argc, char** argv) {
   const int my_nparticles = nparticles / nranks;
   const int my_start = my_nparticles * rank;
 
-  ParticleContainer particles(move_part_ns, my_start, ave_crossings, migration_chance, rng_seed);
-  particles.reserve(my_nparticles);
+  auto proxy = vt::theObjGroup()->makeCollective<ParticleContainer>(move_part_ns, my_start, ave_crossings, migration_chance, rng_seed);
+
+  ParticleContainer* particles = proxy[rank].get();
+
+  particles->reserve(my_nparticles);
 
   for(int i = 0; i < my_nparticles; i++) {
-    particles.addParticle();
+    particles->addParticle();
   }
 
-  executeStep(0, nsteps, particles);
+  executeStep(0, nsteps, proxy);
 
   // This drains the system of work before we finalise.
   while (!::vt::rt->isTerminated()) {
     vt::runScheduler();
   }
  
-  //vt::theCollective()->barrier();
   vt::CollectiveOps::finalize();
 
   return 0;
