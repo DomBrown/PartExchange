@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <vt/transport.h>
 
 #include <iostream>
@@ -11,54 +10,49 @@
 #include "yaml-cpp/yaml.h"
 
 #include "ParticleContainer.hpp"
+#include "ParticleMover.hpp"
 #include "OutputWriter.hpp"
 
-int distributeParticles(const int nparticles, const int my_rank, const int nranks, const double stdev, const int rng_seed) {
-  
-  std::vector<int> rank_counts;
-  rank_counts.resize(nranks);
-  
-  // Root generates the particle counts, then bcast them out
-  if(my_rank == 0) {
-    std::mt19937 pseudorandom_generator(rng_seed);
+typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
 
-    auto maxrank = nranks - 1;
+void executeStep(int step, int num_steps, PMProxyType& proxy) {
+  auto me = vt::theContext()->getNode();
 
-    double mean = nparticles/nranks;
-    auto min_allowed = 0;
-    auto max_allowed = nparticles;
-    std::normal_distribution<> distribution{mean, stdev};
-
-    for(int rank = 0; rank < nranks; rank++) {
-      int amount = 0.; 
-      if(rank == maxrank) {
-        amount = max_allowed;
-      } else {
-        // Resample until we get a valid value
-        do {
-          amount = std::round(distribution(pseudorandom_generator));
-        } while(!((amount > min_allowed) && (amount < max_allowed)));
-      }   
-      
-      rank_counts[rank] = amount;
-      max_allowed -= amount;
-      std::cout << "Rank " << rank << " has " << rank_counts[rank] << std::endl;
-    }
+  if(me == 0) {
+    fmt::print("Starting step {}\n", step);
   }
+  
+  ParticleMover* mover = proxy[me].get();
+	
+  mover->setNumMoves();
+  vt::theCollective()->barrier();
 
-  MPI_Bcast(rank_counts.data(), nranks, MPI_INT, 0, MPI_COMM_WORLD);
+  // This will allow us to detect termination.
+  auto epoch = vt::theTerm()->makeEpochCollective();
 
-  return rank_counts[my_rank];
+  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, mover, me]{
+    //fmt::print("{}: step={} finished\n", me, step);
+    if (step+1 < num_steps) {
+      executeStep(step+1, num_steps, proxy);
+    } else {
+      fmt::print("Node {} Final Count: {}\n", me, mover->size());
+    }
+  });
+
+  // Start the work with a NullMsg to self
+  auto msg = vt::makeSharedMessage<NullMsg>();
+  vt::envelopeSetEpoch(msg->env, epoch);
+
+  proxy[vt::theContext()->getNode()].send<NullMsg, &ParticleMover::moveHandler>(msg);
+  vt::theTerm()->finishedEpoch(epoch);
 }
 
 int main(int argc, char** argv) {
 
-  MPI_Init(NULL, NULL);
+  vt::CollectiveOps::initialize(argc, argv);
 
-  int nranks, rank;
-
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+  int rank = vt::theContext()->getNode();
+  int nranks = vt::theContext()->getNumNodes();
 
   YAML::Node input_deck;
 
@@ -77,6 +71,7 @@ int main(int argc, char** argv) {
   int migration_chance;
   const double dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
 
+
   // Never migrate if ranks < 2
   if(nranks > 1) {
     migration_chance = input_deck["Migration Chance"].as<int>();
@@ -85,85 +80,29 @@ int main(int argc, char** argv) {
     std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
   }
 
-  ParticleContainer particles(0, ave_crossings, migration_chance, rng_seed);
+  // Hardcoded even particle distribution for ease of porting
+  const int my_nparticles = nparticles / nranks;
+  const int my_start = my_nparticles * rank;
+
+  ParticleContainer particles(my_start);
+
+  auto proxy = vt::theObjGroup()->makeCollective<ParticleMover>(particles, move_part_ns, ave_crossings, migration_chance, rng_seed);
+  ParticleMover* mover = proxy[rank].get();
   
-  const int my_initial_total = distributeParticles(nparticles, rank, nranks, dist_stdev, rng_seed);
+  particles.reserve(my_nparticles);
 
-  particles.reserve(my_initial_total); 
-
-  for(int i = 0; i < my_initial_total; i++)
+  for(int i = 0; i < my_nparticles; i++) {
     particles.addParticle();
-
-  // Wait for everyone to load their particles
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  double commtime = 0.;
-
-  for(int step = 0; step < nsteps; step++) {
-    if(rank == 0) {
-      std::cout << "Step " << step << std::endl;
-    }
-    
-    // Setup for move, assign each particle a move count based on the
-    // distribution we set up
-    particles.setNumMoves();
-
-    // Finish setting up before we do the work for this step
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    int total_sent = 0;
-    int start = 0;
-    
-    do {
-      // Do the move
-      particles.moveKernel(start, particles.size(), move_part_ns);
-      
-      double commstart = MPI_Wtime();
-
-      total_sent = particles.doMigration(start);
-
-      commtime += (MPI_Wtime() - commstart);
-    } while(total_sent > 0);
-
-  }
-  
-  // Make sure everyone is done before we process the timing data
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  std::cout << "Rank " << rank << " Final Count " << particles.size() << std::endl;
-
-  std::vector<double> comm_times, move_times;
-  comm_times.resize(nranks);
-  move_times.resize(nranks);
-
-  // Gather up times from all ranks and generate statistics
-  MPI_Gather(&commtime, 1, MPI_DOUBLE, comm_times.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-  double my_move_time = particles.getTimeMoved();
-  MPI_Gather(&my_move_time, 1, MPI_DOUBLE, move_times.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-  int my_final_count = particles.size();
-  int total_count = 0;
-  MPI_Reduce(&my_final_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-
-  if(rank == 0) {
-    std::string fname;
-    if(input_deck["Statistics File Name"]) {
-      fname = input_deck["Statistics File Name"].as<std::string>();
-    }
-    
-    OutputWriter writer(fname);
-    
-    writer.writeStatistics("Computation", move_times);
-
-    writer.writeStatistics("Migration", comm_times);
-
-    if(total_count != nparticles) {
-      std::cout << "ERROR: Beginning and final particle counts do not match!" << std::endl;
-    }
   }
 
-  MPI_Finalize();
+  executeStep(0, nsteps, proxy);
+
+  // This drains the system of work before we finalise.
+  while (!::vt::rt->isTerminated()) {
+    vt::runScheduler();
+  }
+ 
+  vt::CollectiveOps::finalize();
 
   return 0;
 }

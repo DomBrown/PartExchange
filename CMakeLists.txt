@@ -60,13 +60,15 @@ find_package_local(vt "${vt_DIR}/cmake")
 find_package(YamlCpp REQUIRED)
 
 set(SOURCE_FILES
-  src/PartExchangeVT.cpp
+  src/PartExchange.cpp
   src/Particle.cpp
+  src/ParticleMover.cpp
   src/ParticleContainer.cpp
   src/OutputWriter.cpp
 )
 set(HEADER_FILES
   src/Particle.hpp
+  src/ParticleMover.hpp
   src/ParticleContainer.hpp
   src/OutputWriter.hpp
 )
