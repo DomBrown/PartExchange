@@ -22,20 +22,20 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
     fmt::print("Starting step {}\n", step);
   }
   
-  ParticleMover* mover = proxy[me].get();
+  ParticleMover* moverPtr = proxy[me].get();
 	
-  mover->setNumMoves();
+  moverPtr->setNumMoves();
   vt::theCollective()->barrier();
 
   // This will allow us to detect termination.
   auto epoch = vt::theTerm()->makeEpochCollective();
 
-  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, mover, me]{
+  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, moverPtr, me]{
     //fmt::print("{}: step={} finished\n", me, step);
     if (step+1 < num_steps) {
       executeStep(step+1, num_steps, proxy);
     } else {
-      fmt::print("Node {} Final Count: {}\n", me, mover->size());
+      fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
     }
   });
 
@@ -43,7 +43,7 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
   auto msg = vt::makeSharedMessage<NullMsg>();
   vt::envelopeSetEpoch(msg->env, epoch);
 
-  proxy[vt::theContext()->getNode()].send<NullMsg, &ParticleMover::moveHandler>(msg);
+  proxy[me].send<NullMsg, &ParticleMover::moveHandler>(msg);
   vt::theTerm()->finishedEpoch(epoch);
 }
 
