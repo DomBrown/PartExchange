@@ -15,17 +15,50 @@
 
 typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
 
+// "Normally" distribute  particles over ranks. Return a vector containing counts for
+// each rank we are using
+std::vector<int> distributeParticles(const int nparticles, const int nranks, const double stdev, const int rng_seed) {
+
+  std::vector<int> rank_counts;
+  rank_counts.resize(nranks);
+
+  std::mt19937 pseudorandom_generator(rng_seed);
+
+  int maxrank = nranks - 1;
+
+  double mean = nparticles/nranks;
+  auto min_allowed = 0;
+  auto max_allowed = nparticles;
+  std::normal_distribution<> distribution{mean, stdev};
+
+  for(int rank = 0; rank < nranks; rank++) {
+    int amount = 0.; 
+    if(rank == maxrank) {
+      amount = max_allowed;
+    } else {
+      // Resample until we get a valid value
+      do {
+        amount = std::round(distribution(pseudorandom_generator));
+      } while(!((amount > min_allowed) && (amount < max_allowed)));
+    }   
+
+    rank_counts[rank] = amount;
+    max_allowed -= amount;
+  }
+
+  return rank_counts;
+}
+
 void executeStep(int step, int num_steps, PMProxyType& proxy) {
   auto me = vt::theContext()->getNode();
 
-  if(me == 0) {
-    fmt::print("Starting step {}\n", step);
-  }
-  
   ParticleMover* moverPtr = proxy[me].get();
 	
   moverPtr->setNumMoves();
-  vt::theCollective()->barrier();
+  vt::theCollective()->barrierThen([me, step]() {
+    if(me == 0)
+      fmt::print("Starting step {}\n", step);
+  });
 
   // This will allow us to detect termination.
   auto epoch = vt::theTerm()->makeEpochCollective();
@@ -66,13 +99,13 @@ int main(int argc, char** argv) {
   const int nsteps = input_deck["Timesteps"].as<int>();
   const int nparticles = input_deck["Particle Count"].as<int>();
   const double ave_crossings = input_deck["Average Crossings"].as<double>();
-  const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank; // Make sure each rank seed is different or else we have problems
+  
+  // Make sure each rank seed is different or else we have problems
+  const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank;
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
   int migration_chance;
   const double dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
 
-
-  // Never migrate if ranks < 2
   if(nranks > 1) {
     migration_chance = input_deck["Migration Chance"].as<int>();
   } else {
@@ -80,9 +113,14 @@ int main(int argc, char** argv) {
     std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
   }
 
-  // Hardcoded even particle distribution for ease of porting
-  const int my_nparticles = nparticles / nranks;
-  const int my_start = my_nparticles * rank;
+  // Using the same seed removes the need for a bcast as everyone will get the same distro
+  std::vector<int> rank_counts = distributeParticles(nparticles, nranks, dist_stdev, (rng_seed - rank));
+  fmt::print("Rank {} has {} particles\n", rank, rank_counts[rank]);
+
+  int my_start = 0;
+  const int my_nparticles = rank_counts[rank];
+  for(int i = 0; i < rank; i++)
+    my_start += rank_counts[i];
 
   ParticleContainer particles(my_start);
 
@@ -94,10 +132,13 @@ int main(int argc, char** argv) {
   for(int i = 0; i < my_nparticles; i++) {
     particles.addParticle();
   }
-
+ 
+  vt::theCollective()->barrierThen([]() {
+    if(vt::theContext()->getNode() == 0)
+      fmt::print("Initialised!\n");
+  });
   executeStep(0, nsteps, proxy);
 
-  // This drains the system of work before we finalise.
   while (!::vt::rt->isTerminated()) {
     vt::runScheduler();
   }
