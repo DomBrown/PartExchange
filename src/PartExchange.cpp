@@ -15,6 +15,8 @@
 
 typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
 
+static double total_time, start = 0.0;
+
 // "Normally" distribute  particles over ranks. Return a vector containing counts for
 // each rank we are using
 std::vector<int> distributeParticles(const int nparticles, const int nranks, const double stdev, const int rng_seed) {
@@ -65,10 +67,14 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
 
   vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, moverPtr, me]{
     //fmt::print("{}: step={} finished\n", me, step);
+    total_time += (vt::timing::Timing::getCurrentTime() - start);
     if (step+1 < num_steps) {
       executeStep(step+1, num_steps, proxy);
     } else {
       fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
+      if(me == 0) {
+        fmt::print("Total Time: {:.5f}\n", total_time);
+      }
     }
   });
 
@@ -76,6 +82,7 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
   auto msg = vt::makeSharedMessage<NullMsg>();
   vt::envelopeSetEpoch(msg->env, epoch);
 
+  start = vt::timing::Timing::getCurrentTime();
   proxy[me].send<NullMsg, &ParticleMover::moveHandler>(msg);
   vt::theTerm()->finishedEpoch(epoch);
 }
