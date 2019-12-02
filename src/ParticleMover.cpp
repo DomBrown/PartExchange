@@ -6,8 +6,8 @@
 #include <thread>
 #include <algorithm>
 
-ParticleMover::ParticleMover(ParticleContainer& particles_, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed) :
-  particles(particles_), particle_start_idx(0), move_part_ns(move_part_ns_), migrate_chance(migrate_chance_),
+ParticleMover::ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed) :
+  particles(ParticleContainer(start)), particle_start_idx(0), move_part_ns(move_part_ns_), migrate_chance(migrate_chance_),
   total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
 
   rank = vt::theContext()->getNode();
@@ -21,6 +21,9 @@ ParticleMover::ParticleMover(ParticleContainer& particles_, const int move_part_
 
   migrate_distribution = std::uniform_int_distribution<>(1, 100);
   neighbour_distribution = std::uniform_int_distribution<>(0, neighbours.size() - 1);
+
+  for(int i = 0; i < num_particles; i++)
+    particles.addParticle();
 
   particle_dests.reserve(100);
 }

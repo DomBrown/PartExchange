@@ -67,7 +67,9 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
 
   vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, moverPtr, me]{
     //fmt::print("{}: step={} finished\n", me, step);
+    //fmt::print("Rank {} has {} particles\n", me, moverPtr->size());
     total_time += (vt::timing::Timing::getCurrentTime() - start);
+    
     if (step+1 < num_steps) {
       executeStep(step+1, num_steps, proxy);
     } else {
@@ -129,16 +131,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < rank; i++)
     my_start += rank_counts[i];
 
-  ParticleContainer particles(my_start);
-
-  auto proxy = vt::theObjGroup()->makeCollective<ParticleMover>(particles, move_part_ns, ave_crossings, migration_chance, rng_seed);
-  ParticleMover* mover = proxy[rank].get();
-  
-  particles.reserve(my_nparticles);
-
-  for(int i = 0; i < my_nparticles; i++) {
-    particles.addParticle();
-  }
+  auto proxy = vt::theObjGroup()->makeCollective<ParticleMover>(my_nparticles, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed);
  
   vt::theCollective()->barrierThen([]() {
     if(vt::theContext()->getNode() == 0)

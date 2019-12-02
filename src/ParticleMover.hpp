@@ -13,7 +13,7 @@ struct NullMsg : vt::Message {};
 class ParticleMover {
   public:
     ParticleMover() = delete;
-    ParticleMover(ParticleContainer& particles, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed);
+    ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Marks a particle for migration
     void migrateParticle(const int idx);
@@ -47,7 +47,7 @@ class ParticleMover {
     int size();
   
   private:
-    ParticleContainer& particles;
+    ParticleContainer particles;
     int particle_start_idx;
     std::vector<int> migrate_list;
     int move_part_ns;
