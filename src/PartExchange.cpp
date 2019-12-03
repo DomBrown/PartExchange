@@ -13,12 +13,14 @@
 #include "ParticleMover.hpp"
 #include "OutputWriter.hpp"
 
-//typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
 using IndexType = vt::IdxType1D<std::size_t>;
-//using PMProxyType = vt::vrt::VrtElmProxy<ParticleMover, IndexType>;
 using PMProxyType = vt::vrt::collection::CollectionProxy<ParticleMover, IndexType>;
 
 static double total_time, start = 0.0;
+
+// Forward declare these so we can use in term calls
+void initStep(int step, int num_steps, PMProxyType& proxy);
+void executeStep(int step, int num_steps, PMProxyType& proxy);
 
 // "Normally" distribute  particles over ranks. Return a vector containing counts for
 // each rank we are using
@@ -57,41 +59,51 @@ std::vector<int> distributeParticles(const int nparticles, const int nranks, con
 void executeStep(int step, int num_steps, PMProxyType& proxy) {
   auto me = vt::theContext()->getNode();
 
-  /*ParticleMover* moverPtr = proxy[me].get();
-  proxy[me].setNumMoves();
-	
-  moverPtr->setNumMoves();
-  vt::theCollective()->barrierThen([me, step]() {
-    if(me == 0)
-      fmt::print("Starting step {}\n", step);
-  });
-
   // This will allow us to detect termination.
   auto epoch = vt::theTerm()->makeEpochCollective();
 
-  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, moverPtr, me]{
-    //fmt::print("{}: step={} finished\n", me, step);
-    //fmt::print("Rank {} has {} particles\n", me, moverPtr->size());
+  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, me]{
     total_time += (vt::timing::Timing::getCurrentTime() - start);
     
     if (step+1 < num_steps) {
-      executeStep(step+1, num_steps, proxy);
-    } else {
+      initStep(step+1, num_steps, proxy);
+    } /*else {
       fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
       if(me == 0) {
         fmt::print("Total Time: {:.5f}\n", total_time);
       }
-    }
-  });*/
+    }*/
+  });
 
-  // Start the work with a NullMsg to self
   auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
-  //vt::envelopeSetEpoch(msg->env, epoch);
+  vt::envelopeSetEpoch(msg->env, epoch);
 
-  //start = vt::timing::Timing::getCurrentTime();
+  start = vt::timing::Timing::getCurrentTime();
   proxy[me].send<ParticleMover::NullMsg, &ParticleMover::moveHandler>(msg);
-  //vt::theTerm()->finishedEpoch(epoch);
+  
+  vt::theTerm()->finishedEpoch(epoch);
 }
+
+void initStep(int step, int num_steps, PMProxyType& proxy) {
+  auto me = vt::theContext()->getNode();
+  
+  auto epoch = vt::theTerm()->makeEpochCollective();
+
+  vt::theTerm()->addAction(epoch, [step, num_steps, &proxy, me]{
+    if(me == 0)
+      fmt::print("Starting step {}\n", step);
+    
+    executeStep(step, num_steps, proxy);
+  });
+
+  auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
+  vt::envelopeSetEpoch(msg->env, epoch);
+
+  proxy[me].send<ParticleMover::NullMsg, &ParticleMover::setNumMovesHandler>(msg);
+  
+  vt::theTerm()->finishedEpoch(epoch);
+}
+
 
 int main(int argc, char** argv) {
 
@@ -141,8 +153,6 @@ int main(int argc, char** argv) {
   auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
     range, [&rank_counts, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed] (IndexType idx) {
       return std::make_unique<ParticleMover>(rank_counts[idx.x()], my_start, move_part_ns, ave_crossings, migration_chance, rng_seed);
-      /*(pm.get())->setNumMoves();
-      return std::move(pm);*/
     }
   );
  
@@ -150,7 +160,8 @@ int main(int argc, char** argv) {
     if(vt::theContext()->getNode() == 0)
       fmt::print("Initialised!\n");
   });
-  executeStep(0, nsteps, proxy);
+  
+  initStep(0, nsteps, proxy);
 
   while (!::vt::rt->isTerminated()) {
     vt::runScheduler();

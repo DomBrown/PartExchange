@@ -120,6 +120,10 @@ void ParticleMover::particleMigrationHandler(ParticleMsg *msg) {
   moveParticles();
 }
 
+void ParticleMover::setNumMovesHandler(NullMsg *msg) {
+  setNumMoves();  
+}
+
 void ParticleMover::migrateParticle(const int idx) {
   const int neighbour_idx = neighbour_distribution(neighbour_engine); // Send to a rand neighbour
   particles[idx].dead = 1;

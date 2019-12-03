@@ -63,6 +63,8 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     // Handler to be called when we recv particles
     void particleMigrationHandler(ParticleMsg *msg);
 
+    void setNumMovesHandler(NullMsg *msg);
+
     int size();
   
   private:
