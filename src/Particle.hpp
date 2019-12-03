@@ -30,7 +30,7 @@ struct Particle {
   }
 };
 
-struct ParticleMsg : vt::Message {
+/*struct ParticleMsg : vt::Message {
   ParticleMsg() = default;
 
   // Add a serialiser that will serialise the particle vector
@@ -41,6 +41,6 @@ struct ParticleMsg : vt::Message {
 
   public:
     std::vector<Particle> particles;
-};
+};*/
 
 #endif

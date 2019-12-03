@@ -6,6 +6,9 @@
 #include <random>
 #include <utility>
 #include <cassert>
+#include <cstdlib>
+
+using IndexType = vt::IdxType1D<std::size_t>;
 
 class ParticleContainer {
   public:

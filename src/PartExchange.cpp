@@ -13,7 +13,10 @@
 #include "ParticleMover.hpp"
 #include "OutputWriter.hpp"
 
-typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
+//typedef vt::objgroup::proxy::Proxy<ParticleMover> PMProxyType;
+using IndexType = vt::IdxType1D<std::size_t>;
+//using PMProxyType = vt::vrt::VrtElmProxy<ParticleMover, IndexType>;
+using PMProxyType = vt::vrt::collection::CollectionProxy<ParticleMover, IndexType>;
 
 static double total_time, start = 0.0;
 
@@ -54,7 +57,8 @@ std::vector<int> distributeParticles(const int nparticles, const int nranks, con
 void executeStep(int step, int num_steps, PMProxyType& proxy) {
   auto me = vt::theContext()->getNode();
 
-  ParticleMover* moverPtr = proxy[me].get();
+  /*ParticleMover* moverPtr = proxy[me].get();
+  proxy[me].setNumMoves();
 	
   moverPtr->setNumMoves();
   vt::theCollective()->barrierThen([me, step]() {
@@ -78,15 +82,15 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
         fmt::print("Total Time: {:.5f}\n", total_time);
       }
     }
-  });
+  });*/
 
   // Start the work with a NullMsg to self
-  auto msg = vt::makeSharedMessage<NullMsg>();
-  vt::envelopeSetEpoch(msg->env, epoch);
+  auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
+  //vt::envelopeSetEpoch(msg->env, epoch);
 
-  start = vt::timing::Timing::getCurrentTime();
-  proxy[me].send<NullMsg, &ParticleMover::moveHandler>(msg);
-  vt::theTerm()->finishedEpoch(epoch);
+  //start = vt::timing::Timing::getCurrentTime();
+  proxy[me].send<ParticleMover::NullMsg, &ParticleMover::moveHandler>(msg);
+  //vt::theTerm()->finishedEpoch(epoch);
 }
 
 int main(int argc, char** argv) {
@@ -131,7 +135,16 @@ int main(int argc, char** argv) {
   for(int i = 0; i < rank; i++)
     my_start += rank_counts[i];
 
-  auto proxy = vt::theObjGroup()->makeCollective<ParticleMover>(my_nparticles, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed);
+  using BaseIndexType = typename IndexType::DenseIndexType;
+  auto const& range = IndexType(static_cast<BaseIndexType>(nranks));
+
+  auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
+    range, [&rank_counts, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed] (IndexType idx) {
+      return std::make_unique<ParticleMover>(rank_counts[idx.x()], my_start, move_part_ns, ave_crossings, migration_chance, rng_seed);
+      /*(pm.get())->setNumMoves();
+      return std::move(pm);*/
+    }
+  );
  
   vt::theCollective()->barrierThen([]() {
     if(vt::theContext()->getNode() == 0)

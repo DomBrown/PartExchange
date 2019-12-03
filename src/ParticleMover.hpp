@@ -7,12 +7,31 @@
 #include <random>
 #include <utility>
 #include <cassert>
+#include <cstdlib>
+
+using IndexType = vt::IdxType1D<std::size_t>;
 
 struct NullMsg : vt::Message {};
 
-class ParticleMover {
+class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
   public:
-    ParticleMover() = delete;
+    
+    struct NullMsg : vt::CollectionMessage<ParticleMover> {};
+
+		struct ParticleMsg : vt::CollectionMessage<ParticleMover> {
+      ParticleMsg() = default;
+
+      // Add a serialiser that will serialise the particle vector
+      template <typename SerializerT>
+      void serialize(SerializerT& s) {
+        s | particles;
+      }
+
+      public:
+        std::vector<Particle> particles;
+    };
+    
+    ParticleMover() = default;
     ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed);
 
     // Marks a particle for migration
