@@ -134,6 +134,7 @@ int main(int argc, char** argv) {
   const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
   int migration_chance;
   const double dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
+  const int overdecompose = input_deck["Overdecompose"].as<int>();
 
   if(nranks > 1) {
     migration_chance = input_deck["Migration Chance"].as<int>();
@@ -152,11 +153,11 @@ int main(int argc, char** argv) {
     my_start += rank_counts[i];
 
   using BaseIndexType = typename IndexType::DenseIndexType;
-  auto const& range = IndexType(static_cast<BaseIndexType>(nranks));
+  auto const& range = IndexType(static_cast<BaseIndexType>(nranks*overdecompose));
 
   auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
-    range, [&rank_counts, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed] (IndexType idx) {
-      return std::make_unique<ParticleMover>(rank_counts[idx.x()], my_start, move_part_ns, ave_crossings, migration_chance, rng_seed);
+    range, [rank, overdecompose, nranks, &rank_counts, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed] (IndexType idx) {
+      return std::make_unique<ParticleMover>(rank_counts[rank]/overdecompose, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed, nranks*overdecompose);
     }
   );
  

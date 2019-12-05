@@ -6,9 +6,9 @@
 #include <thread>
 #include <algorithm>
 
-ParticleMover::ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed) :
+ParticleMover::ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_) :
   particles(ParticleContainer(start)), particle_start_idx(0), move_part_ns(move_part_ns_), migrate_chance(migrate_chance_),
-  total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)) {
+  total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)), ntiles(ntiles_) {
 
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
@@ -156,9 +156,10 @@ int ParticleMover::size() {
 
 // I know this is horrible but it's only temporary
 void ParticleMover::setupNeighbours() {
-  if(nranks == 1) {
+  int tile = (this->getIndex()).x();
+  if(ntiles == 1) {
     neighbours.push_back(MPI_PROC_NULL);
-  } else if(nranks == 2) { // Avoids recording the same neighbour twice in the 2 rank case
+  } else if(ntiles == 2) { // Avoids recording the same neighbour twice in the 2 rank case
     if(rank == 0) {
       neighbours.push_back(1);
     } else {
@@ -166,16 +167,16 @@ void ParticleMover::setupNeighbours() {
     }
   } else {
     // Assume 1D periodic for now
-    if((rank + 1) < nranks) {
-      neighbours.push_back(rank + 1);
+    if((tile + 1) < ntiles) {
+      neighbours.push_back(tile + 1);
     } else {
       neighbours.push_back(0);
     }
 
-    if((rank - 1) > -1) {
-      neighbours.push_back(rank - 1);
+    if((tile - 1) > -1) {
+      neighbours.push_back(tile - 1);
     } else {
-      neighbours.push_back(nranks - 1);
+      neighbours.push_back(ntiles - 1);
     }
   }
 }

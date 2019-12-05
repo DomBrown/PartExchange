@@ -43,7 +43,7 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     };
     
     ParticleMover() = default;
-    ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed);
+    ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_);
 
     // Marks a particle for migration
     void migrateParticle(const int idx);
@@ -90,6 +90,7 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     int global_id;
     int migrate_chance;
     double total_seconds;
+    int ntiles;
 
     std::mt19937 engine;
     std::mt19937 migrate_engine;
