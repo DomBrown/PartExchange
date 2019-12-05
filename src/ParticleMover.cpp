@@ -131,6 +131,14 @@ void ParticleMover::particleDumpHandler(DumpMsg *msg) {
   particles.dumpParticles(msg->rank);
 }
 
+void ParticleMover::printParticleCountsHandler(NullMsg *msg) {
+  const auto& proxy = this->getCollectionProxy();
+
+  int idx = (this->getIndex()).x();
+  auto rmsg = vt::makeSharedMessage<CustomPayloadMsg>(idx, particles.size());
+  proxy.reduce<vt::collective::PlusOp<CustomPayload>, PrintReduceResult>(rmsg);
+}
+
 void ParticleMover::migrateParticle(const int idx) {
   const int neighbour_idx = neighbour_distribution(neighbour_engine); // Send to a rand neighbour
   particles[idx].dead = 1;

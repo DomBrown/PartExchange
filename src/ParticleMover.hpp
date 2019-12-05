@@ -2,6 +2,8 @@
 #define PARTICLE_MOVER_HPP
 #include "Particle.hpp"
 #include "ParticleContainer.hpp"
+#include "CustomReducer.hpp"
+
 #include <vt/transport.h>
 #include <vector>
 #include <random>
@@ -75,6 +77,8 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     void setNumMovesHandler(NullMsg *msg);
 
     void particleDumpHandler(DumpMsg *msg);
+
+    void printParticleCountsHandler(NullMsg *msg);
 
     int size();
   

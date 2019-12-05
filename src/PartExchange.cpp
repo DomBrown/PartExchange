@@ -68,9 +68,13 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
     if (step+1 < num_steps) {
       initStep(step+1, num_steps, proxy);
     } else {
-      //fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
       if(me == 0) {
         fmt::print("Total Time: {:.5f}\n", total_time);
+
+        // Gather up the particle counts to write out
+        // Also sum to ensure none have been lost
+        auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
+        proxy.broadcast<ParticleMover::NullMsg, &ParticleMover::printParticleCountsHandler>(msg);
       }
     }
   });
