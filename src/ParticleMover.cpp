@@ -34,6 +34,9 @@ void ParticleMover::setNumMoves() {
     int num_crossings = distribution(engine);
     particles[i].num_moves = num_crossings + 1;
   }
+#if 0
+  particles.dumpParticles(rank);
+#endif
 }
 
 void ParticleMover::moveParticles() {
@@ -65,7 +68,6 @@ void ParticleMover::moveParticles() {
   particle_dests.clear();
   particle_start_idx = particles.size();
 
-  //auto proxy = vt::theObjGroup()->getProxy(this);
   const auto& proxy = this->getCollectionProxy();
 
   for(int i = 0; i < num_neighbours; i++) {
@@ -73,8 +75,9 @@ void ParticleMover::moveParticles() {
       auto msg = vt::makeSharedMessage<ParticleMover::ParticleMsg>();
       msg->particles = my_send_bufs[i];
       const vt::NodeType to = neighbours[i];
-      
+#if 0      
       fmt::print("Node {} sending {} to {}. Epoch {}\n", vt::theContext()->getNode(), my_send_counts[i], to, vt::theMsg()->getEpoch());
+#endif
       proxy[to].send<ParticleMover::ParticleMsg, &ParticleMover::particleMigrationHandler>(msg);
     }
   }
@@ -122,6 +125,10 @@ void ParticleMover::particleMigrationHandler(ParticleMsg *msg) {
 
 void ParticleMover::setNumMovesHandler(NullMsg *msg) {
   setNumMoves();  
+}
+
+void ParticleMover::particleDumpHandler(DumpMsg *msg) {
+  particles.dumpParticles(msg->rank);
 }
 
 void ParticleMover::migrateParticle(const int idx) {

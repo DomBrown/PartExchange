@@ -67,12 +67,12 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
     
     if (step+1 < num_steps) {
       initStep(step+1, num_steps, proxy);
-    } /*else {
-      fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
+    } else {
+      //fmt::print("Node {} Final Count: {}\n", me, moverPtr->size());
       if(me == 0) {
         fmt::print("Total Time: {:.5f}\n", total_time);
       }
-    }*/
+    }
   });
 
   auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
@@ -100,7 +100,7 @@ void initStep(int step, int num_steps, PMProxyType& proxy) {
   vt::envelopeSetEpoch(msg->env, epoch);
 
   proxy[me].send<ParticleMover::NullMsg, &ParticleMover::setNumMovesHandler>(msg);
-  
+
   vt::theTerm()->finishedEpoch(epoch);
 }
 

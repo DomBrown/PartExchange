@@ -18,6 +18,15 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     
     struct NullMsg : vt::CollectionMessage<ParticleMover> {};
 
+    struct DumpMsg : vt::CollectionMessage<ParticleMover> {
+      DumpMsg() = default;
+
+      DumpMsg(int rank_) : rank(rank_) {}
+
+      public:
+        int rank;
+    };
+
 		struct ParticleMsg : vt::CollectionMessage<ParticleMover> {
       ParticleMsg() = default;
 
@@ -64,6 +73,8 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     void particleMigrationHandler(ParticleMsg *msg);
 
     void setNumMovesHandler(NullMsg *msg);
+
+    void particleDumpHandler(DumpMsg *msg);
 
     int size();
   
