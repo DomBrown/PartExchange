@@ -100,10 +100,15 @@ void initStep(int step, int num_steps, PMProxyType& proxy) {
     executeStep(step, num_steps, proxy);
   });
 
-  auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
-  vt::envelopeSetEpoch(msg->env, epoch);
 
-  proxy[me].send<ParticleMover::NullMsg, &ParticleMover::setNumMovesHandler>(msg);
+  // Start the work
+  // TODO Try an implementation where each node starts its own
+  // tasks and see if that performs better
+  if(me == 0) {
+    auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
+    vt::envelopeSetEpoch(msg->env, epoch);
+    proxy.broadcast<ParticleMover::NullMsg, &ParticleMover::setNumMovesHandler>(msg);
+  }
 
   vt::theTerm()->finishedEpoch(epoch);
 }

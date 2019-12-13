@@ -33,7 +33,6 @@ struct CustomPayloadMsg : vt::collective::ReduceTMsg<CustomPayload> {
 
   CustomPayloadMsg(int in_node, int in_count) : vt::collective::ReduceTMsg<CustomPayload>() {
     auto& vec = getVal().vec;
-    //vec.push_back(in);
     vec.push_back(std::make_pair(in_node, in_count));
   }
 
@@ -53,7 +52,7 @@ struct PrintReduceResult {
         
     for(auto& elem : vec) {
       total += elem.second;
-      fmt::print("Node {} has {} particles\n", elem.first, elem.second);
+      fmt::print("Tile {} has {} particles\n", elem.first, elem.second);
     }   
     fmt::print("Total Particles: {}\n", total);
   }
