@@ -125,7 +125,9 @@ int main(int argc, char** argv) {
 
   if(argc < 2) {
     std::cout << "Provide an input YAML file!" << std::endl;
-    return 1;
+    vt::CollectiveOps::finalize();
+
+    return 0;
   } else {
     input_deck = YAML::LoadFile(argv[1]);
   }
