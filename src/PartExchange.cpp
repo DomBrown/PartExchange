@@ -9,6 +9,7 @@
 
 #include "yaml-cpp/yaml.h"
 
+#include "InputDeck.hpp"
 #include "ParticleContainer.hpp"
 #include "ParticleMover.hpp"
 #include "OutputWriter.hpp"
@@ -79,12 +80,16 @@ void executeStep(int step, int num_steps, PMProxyType& proxy) {
     }
   });
 
-  auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
-  vt::envelopeSetEpoch(msg->env, epoch);
-
   start = vt::timing::Timing::getCurrentTime();
-  proxy[me].send<ParticleMover::NullMsg, &ParticleMover::moveHandler>(msg);
-  
+  // Start the work
+  // TODO Try an implementation where each node starts its own
+  // tasks and see if that performs better
+  if(me == 0) {
+    auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
+    vt::envelopeSetEpoch(msg->env, epoch);
+    proxy.broadcast<ParticleMover::NullMsg, &ParticleMover::moveHandler>(msg);
+  }
+
   vt::theTerm()->finishedEpoch(epoch);
 }
 
@@ -101,9 +106,6 @@ void initStep(int step, int num_steps, PMProxyType& proxy) {
   });
 
 
-  // Start the work
-  // TODO Try an implementation where each node starts its own
-  // tasks and see if that performs better
   if(me == 0) {
     auto msg = vt::makeSharedMessage<ParticleMover::NullMsg>();
     vt::envelopeSetEpoch(msg->env, epoch);
@@ -121,7 +123,7 @@ int main(int argc, char** argv) {
   int rank = vt::theContext()->getNode();
   int nranks = vt::theContext()->getNumNodes();
 
-  YAML::Node input_deck;
+  InputDeck deck;
 
   if(argc < 2) {
     std::cout << "Provide an input YAML file!" << std::endl;
@@ -129,29 +131,15 @@ int main(int argc, char** argv) {
 
     return 0;
   } else {
-    input_deck = YAML::LoadFile(argv[1]);
-  }
-
-  const int nsteps = input_deck["Timesteps"].as<int>();
-  const int nparticles = input_deck["Particle Count"].as<int>();
-  const double ave_crossings = input_deck["Average Crossings"].as<double>();
-  
-  // Make sure each rank seed is different or else we have problems
-  const int rng_seed = input_deck["Crossing RNG Seed"].as<int>() + rank;
-  const int move_part_ns = input_deck["Move Particle Nanoseconds"].as<int>();
-  int migration_chance;
-  const double dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
-  const int overdecompose = input_deck["Overdecompose"].as<int>();
-
-  if(nranks > 1) {
-    migration_chance = input_deck["Migration Chance"].as<int>();
-  } else {
-    migration_chance = 0;
-    std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
+    int ret = deck.load(argv[1]);
+    if(ret == -1) {
+      vt::CollectiveOps::finalize();
+      return 0;
+    }
   }
 
   // Using the same seed removes the need for a bcast as everyone will get the same distro
-  std::vector<int> rank_counts = distributeParticles(nparticles, nranks, dist_stdev, (rng_seed - rank));
+  std::vector<int> rank_counts = distributeParticles(deck.nparticles, nranks, deck.dist_stdev, deck.base_seed);
   fmt::print("Rank {} has {} particles\n", rank, rank_counts[rank]);
 
   int my_start = 0;
@@ -160,11 +148,22 @@ int main(int argc, char** argv) {
     my_start += rank_counts[i];
 
   using BaseIndexType = typename IndexType::DenseIndexType;
-  auto const& range = IndexType(static_cast<BaseIndexType>(nranks*overdecompose));
+  auto const& range = IndexType(static_cast<BaseIndexType>(nranks*deck.overdecompose));
 
   auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
-    range, [rank, overdecompose, nranks, &rank_counts, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed] (IndexType idx) {
-      return std::make_unique<ParticleMover>(rank_counts[rank]/overdecompose, my_start, move_part_ns, ave_crossings, migration_chance, rng_seed, nranks*overdecompose);
+    range, [&deck, rank, nranks, &rank_counts, my_start] (IndexType idx) {
+      // Each tile needs a unique seed
+      int tile_seed = deck.base_seed + idx.x();
+      
+      return std::make_unique<ParticleMover>(
+        rank_counts[rank]/deck.overdecompose,
+        my_start,
+        deck.move_part_ns,
+        deck.ave_crossings,
+        deck.migration_chance,
+        tile_seed,
+        nranks*deck.overdecompose
+      );
     }
   );
  
@@ -173,7 +172,7 @@ int main(int argc, char** argv) {
       fmt::print("Initialised!\n");
   });
   
-  initStep(0, nsteps, proxy);
+  initStep(0, deck.nsteps, proxy);
 
   while (!::vt::rt->isTerminated()) {
     vt::runScheduler();

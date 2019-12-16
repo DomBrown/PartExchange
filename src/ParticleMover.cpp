@@ -76,7 +76,7 @@ void ParticleMover::moveParticles() {
       msg->particles = my_send_bufs[i];
       const vt::NodeType to = neighbours[i];
 #if 0      
-      fmt::print("Node {} sending {} to {}. Epoch {}\n", vt::theContext()->getNode(), my_send_counts[i], to, vt::theMsg()->getEpoch());
+      fmt::print("Tile {} sending {} to {}. Epoch {}\n", (this->getIndex()).x(), my_send_counts[i], to, vt::theMsg()->getEpoch());
 #endif
       proxy[to].send<ParticleMover::ParticleMsg, &ParticleMover::particleMigrationHandler>(msg);
     }
@@ -107,6 +107,9 @@ void ParticleMover::moveKernel(const int start, const int end) {
 }
 
 void ParticleMover::moveHandler(NullMsg *msg) {
+#if 0
+  fmt::print("moveHandler invoked on {}\n", (this->getIndex()).x());
+#endif
   moveParticles();
 }
 
