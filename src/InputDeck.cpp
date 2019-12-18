@@ -18,9 +18,8 @@ int InputDeck::load(const char* name) {
     
     if(vt::theContext()->getNumNodes()*overdecompose == 1) {
       migration_chance = 0;
-      std::cout << "Running with only 1 rank: Forcing migration chance = 0!" << std::endl;
+      std::cout << "Running with only 1 rank/tile: Forcing migration chance = 0!" << std::endl;
     }
-    
 
     return 0;
   } catch(...) {

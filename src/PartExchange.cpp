@@ -25,7 +25,8 @@ void executeStep(int step, int num_steps, PMProxyType& proxy);
 
 // "Normally" distribute  particles over ranks. Return a vector containing counts for
 // each rank we are using
-std::vector<int> distributeParticles(const int nparticles, const int nranks, const double stdev, const int rng_seed) {
+std::vector<int> distributeParticles(const int nparticles, const int nranks, const int overdecompose, const double stdev,
+  const int rng_seed) {
 
   std::vector<int> rank_counts;
   rank_counts.resize(nranks);
@@ -54,7 +55,30 @@ std::vector<int> distributeParticles(const int nparticles, const int nranks, con
     max_allowed -= amount;
   }
 
-  return rank_counts;
+  const int ntiles = nranks * overdecompose;
+  std::vector<int> tile_counts;
+  tile_counts.resize(ntiles);
+  int node = 0;
+  int f = 0;
+  int chunk = rank_counts[0] / overdecompose;
+  for(int itile = 0; itile < tile_counts.size(); itile++) {
+    if((chunk <= rank_counts[node]) && (f != (overdecompose - 1))) {
+      tile_counts[itile] = chunk;
+      rank_counts[node] -= chunk;
+    } else {
+      tile_counts[itile] = rank_counts[node];
+      rank_counts[node] = 0;
+    }
+    
+    f++;
+    if(f == overdecompose) {
+      node++;
+      chunk = rank_counts[node] / overdecompose;
+      f = 0;
+    }
+  }
+
+  return tile_counts;
 }
 
 void executeStep(int step, int num_steps, PMProxyType& proxy) {
@@ -139,24 +163,27 @@ int main(int argc, char** argv) {
   }
 
   // Using the same seed removes the need for a bcast as everyone will get the same distro
-  std::vector<int> rank_counts = distributeParticles(deck.nparticles, nranks, deck.dist_stdev, deck.base_seed);
-  fmt::print("Rank {} has {} particles\n", rank, rank_counts[rank]);
+  std::vector<int> tile_counts = distributeParticles(deck.nparticles, nranks, deck.overdecompose, deck.dist_stdev, deck.base_seed);
 
   int my_start = 0;
-  const int my_nparticles = rank_counts[rank];
+  /*const int my_nparticles = rank_counts[rank];
   for(int i = 0; i < rank; i++)
-    my_start += rank_counts[i];
+    my_start += rank_counts[i];*/
 
   using BaseIndexType = typename IndexType::DenseIndexType;
   auto const& range = IndexType(static_cast<BaseIndexType>(nranks*deck.overdecompose));
 
+  int my_total = 0;
+
   auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
-    range, [&deck, rank, nranks, &rank_counts, my_start] (IndexType idx) {
+    range, [&deck, rank, nranks, &tile_counts, my_start, &my_total] (IndexType idx) {
+      fmt::print("Tile {} lives on node {}\n", idx.x(), vt::theContext()->getNode());
       // Each tile needs a unique seed
       int tile_seed = deck.base_seed + idx.x();
-      
+      my_total += tile_counts[idx.x()];
+
       return std::make_unique<ParticleMover>(
-        rank_counts[rank]/deck.overdecompose,
+        tile_counts[idx.x()],
         my_start,
         deck.move_part_ns,
         deck.ave_crossings,
@@ -167,12 +194,13 @@ int main(int argc, char** argv) {
     }
   );
  
-  vt::theCollective()->barrierThen([]() {
-    if(vt::theContext()->getNode() == 0)
-      fmt::print("Initialised!\n");
+  vt::theCollective()->barrierThen([&my_total]() {
+    //if(vt::theContext()->getNode() == 0)
+      fmt::print("Node {} Initialised! Total: {}\n", vt::theContext()->getNode(), my_total);
   });
   
-  initStep(0, deck.nsteps, proxy);
+  if(deck.nsteps > 0)
+    initStep(0, deck.nsteps, proxy);
 
   while (!::vt::rt->isTerminated()) {
     vt::runScheduler();
