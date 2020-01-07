@@ -15,6 +15,8 @@ int InputDeck::load(const char* name) {
     
     dist_stdev = input_deck["Particle Distribution"]["Standard Deviation"].as<double>();
     overdecompose = input_deck["Overdecompose"].as<int>();
+
+    ave_neighbours = input_deck["Average Neighbours"].as<double>();
     
     if(vt::theContext()->getNumNodes()*overdecompose == 1) {
       migration_chance = 0;

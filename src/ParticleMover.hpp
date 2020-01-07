@@ -43,7 +43,7 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
     };
     
     ParticleMover() = default;
-    ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_);
+    ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_, const std::vector<int> neighbours_);
 
     // Marks a particle for migration
     void migrateParticle(const int idx);
@@ -66,8 +66,6 @@ class ParticleMover : public vt::Collection<ParticleMover, IndexType> {
 
     // Query total time spent moving particles so far (sum of sleeps)
     double getTimeMoved();
-
-    void setupNeighbours();
 
     void moveHandler(NullMsg *msg);
 

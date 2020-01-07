@@ -66,6 +66,7 @@ set(SOURCE_FILES
   src/ParticleContainer.cpp
   src/OutputWriter.cpp
   src/InputDeck.cpp
+  src/GraphGenerator.cpp
 )
 set(HEADER_FILES
   src/Particle.hpp
@@ -74,6 +75,7 @@ set(HEADER_FILES
   src/OutputWriter.hpp
   src/CustomReducer.hpp
   src/InputDeck.hpp
+  src/GraphGenerator.hpp
 )
 
 add_executable(PartExchange ${SOURCE_FILES} ${HEADER_FILES})

@@ -6,14 +6,23 @@
 #include <thread>
 #include <algorithm>
 
-ParticleMover::ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_) :
+ParticleMover::ParticleMover(const int num_particles, const int start, const int move_part_ns_, const double ave_crossings, const int migrate_chance_, const int seed, const int ntiles_, const std::vector<int> neighbours_) :
   particles(ParticleContainer(start)), particle_start_idx(0), move_part_ns(move_part_ns_), migrate_chance(migrate_chance_),
-  total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)), ntiles(ntiles_) {
+  total_seconds(0.0), distribution(std::poisson_distribution<int>(ave_crossings)), ntiles(ntiles_), neighbours(neighbours_) {
 
   rank = vt::theContext()->getNode();
   nranks = vt::theContext()->getNumNodes();
 
-  setupNeighbours();
+#if 0
+  std::string str;
+  for(auto& elem : neighbours) {
+    str += std::to_string(elem);
+    str += " ";
+  }
+
+  int idx = (this->getIndex()).x();
+  fmt::print("Tile: {}   {}\n", idx, str);
+#endif
 
   engine.seed(seed);
   migrate_engine.seed(seed);
@@ -75,7 +84,7 @@ void ParticleMover::moveParticles() {
       auto msg = vt::makeSharedMessage<ParticleMover::ParticleMsg>();
       msg->particles = my_send_bufs[i];
       const vt::NodeType to = neighbours[i];
-#if 0      
+#if 0
       fmt::print("Tile {} sending {} to {}. Epoch {}\n", (this->getIndex()).x(), my_send_counts[i], to, vt::theMsg()->getEpoch());
 #endif
       proxy[to].send<ParticleMover::ParticleMsg, &ParticleMover::particleMigrationHandler>(msg);
@@ -155,31 +164,4 @@ double ParticleMover::getTimeMoved() {
 
 int ParticleMover::size() {
   return particles.size();
-}
-
-// I know this is horrible but it's only temporary
-void ParticleMover::setupNeighbours() {
-  int tile = (this->getIndex()).x();
-  if(ntiles == 1) {
-    neighbours.push_back(MPI_PROC_NULL);
-  } else if(ntiles == 2) { // Avoids recording the same neighbour twice in the 2 rank case
-    if(rank == 0) {
-      neighbours.push_back(1);
-    } else {
-      neighbours.push_back(0);
-    }
-  } else {
-    // Assume 1D periodic for now
-    if((tile + 1) < ntiles) {
-      neighbours.push_back(tile + 1);
-    } else {
-      neighbours.push_back(0);
-    }
-
-    if((tile - 1) > -1) {
-      neighbours.push_back(tile - 1);
-    } else {
-      neighbours.push_back(ntiles - 1);
-    }
-  }
 }

@@ -13,6 +13,7 @@
 #include "ParticleContainer.hpp"
 #include "ParticleMover.hpp"
 #include "OutputWriter.hpp"
+#include "GraphGenerator.hpp"
 
 using IndexType = vt::IdxType1D<std::size_t>;
 using PMProxyType = vt::vrt::collection::CollectionProxy<ParticleMover, IndexType>;
@@ -165,6 +166,10 @@ int main(int argc, char** argv) {
   // Using the same seed removes the need for a bcast as everyone will get the same distro
   std::vector<int> tile_counts = distributeParticles(deck.nparticles, nranks, deck.overdecompose, deck.dist_stdev, deck.base_seed);
 
+  // Generate a graph where tiles are nodes and neighbours
+  // are linked by edges
+  GraphGenerator neighbour_graph(nranks * deck.overdecompose, deck.ave_neighbours, deck.base_seed);
+
   int my_start = 0;
   /*const int my_nparticles = rank_counts[rank];
   for(int i = 0; i < rank; i++)
@@ -176,7 +181,7 @@ int main(int argc, char** argv) {
   int my_total = 0;
 
   auto proxy = vt::theCollection()->constructCollective<ParticleMover>(
-    range, [&deck, rank, nranks, &tile_counts, my_start, &my_total] (IndexType idx) {
+    range, [&deck, rank, nranks, &tile_counts, my_start, &my_total, &neighbour_graph] (IndexType idx) {
       fmt::print("Tile {} lives on node {}\n", idx.x(), vt::theContext()->getNode());
       // Each tile needs a unique seed
       int tile_seed = deck.base_seed + idx.x();
@@ -189,13 +194,13 @@ int main(int argc, char** argv) {
         deck.ave_crossings,
         deck.migration_chance,
         tile_seed,
-        nranks*deck.overdecompose
+        nranks*deck.overdecompose,
+        neighbour_graph.getNodeNeighbours(idx.x())
       );
     }
   );
  
   vt::theCollective()->barrierThen([&my_total]() {
-    //if(vt::theContext()->getNode() == 0)
       fmt::print("Node {} Initialised! Total: {}\n", vt::theContext()->getNode(), my_total);
   });
   
